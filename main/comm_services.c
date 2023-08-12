@@ -18,6 +18,18 @@ ________________________________________________________________________________
 //____________________________________________________________________________________________________
 // Macro definitions:
 //____________________________________________________________________________________________________
+//Comment out this line to use dynamic IP, via DHCP Server:
+
+//#define ETHERNET_USE_STATIC_IP
+
+#ifdef ETHERNET_USE_STATIC_IP
+
+#define ETHERNET_IP_ADDR        "192.168.1.20"
+#define ETHERNET_GATEWAY        "192.168.1.10"
+#define ETHERNET_SUBNET_MASK    "255.255.255.0"
+
+#endif //ETHERNET_USE_STATIC_IP
+
 //Comment out this line to use ENC28J60 Ethernet Module
 
 #define ETHERNET_USE_W5500  
@@ -118,16 +130,18 @@ void ethernetInit() {
     esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_ETH();
     eth_netif = esp_netif_new(&netif_cfg);
 
-    // Uncomment this block to set fixed IP address:
+    #ifdef ETHERNET_USE_STATIC_IP
 
-    /* esp_netif_dhcpc_stop(eth_netif);
+    esp_netif_dhcpc_stop(eth_netif);
     esp_netif_ip_info_t ip_info;
 
-    esp_netif_str_to_ip4("192.168.1.20", &ip_info.ip);          //Set IP address
-    esp_netif_str_to_ip4("192.168.1.10", &ip_info.gw);          //Set Gateway
-    esp_netif_str_to_ip4("255.255.255.0", &ip_info.netmask);    //Set Subnet Mask
+    esp_netif_str_to_ip4(ETHERNET_IP_ADDR, &ip_info.ip);          //Set IP address
+    esp_netif_str_to_ip4(ETHERNET_GATEWAY, &ip_info.gw);          //Set Gateway
+    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
 
-    esp_netif_set_ip_info(eth_netif, &ip_info); */
+    esp_netif_set_ip_info(eth_netif, &ip_info);
+    
+    #endif //ETHERNET_USE_STATIC_IP
     
 
     spi_bus_config_t buscfg = {
@@ -212,17 +226,17 @@ void ethernetInit() {
     esp_netif_config.route_prio = 30;
     eth_netif = esp_netif_new(&cfg_spi);
 
-
-    // Uncomment this block to set fixed IP address:
-
-    /* esp_netif_dhcpc_stop(eth_netif);
+#ifdef ETHERNET_USE_STATIC_IP
+    esp_netif_dhcpc_stop(eth_netif);
     esp_netif_ip_info_t ip_info;
 
-    esp_netif_str_to_ip4("192.168.1.20", &ip_info.ip);          //Set IP address
-    esp_netif_str_to_ip4("192.168.1.10", &ip_info.gw);          //Set Gateway
-    esp_netif_str_to_ip4("255.255.255.0", &ip_info.netmask);    //Set Subnet Mask
+    esp_netif_str_to_ip4(ETHERNET_IP_ADDR, &ip_info.ip);          //Set IP address
+    esp_netif_str_to_ip4(ETHERNET_GATEWAY, &ip_info.gw);          //Set Gateway
+    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
 
-    esp_netif_set_ip_info(eth_netif, &ip_info); */
+    esp_netif_set_ip_info(eth_netif, &ip_info);
+
+#endif //ETHERNET_USE_STATIC_IP
 
     // Init MAC and PHY configs to default
     eth_mac_config_t mac_config_spi = ETH_MAC_DEFAULT_CONFIG();
