@@ -12,22 +12,35 @@ ________________________________________________________________________________
 #include "esp_netif.h"
 #include "esp_eth.h"
 #include "esp_event.h"
-#include "esp_eth_enc28j60.h"
-
+#include "driver/spi_master.h"
 #include "esp_log.h"
 
 //____________________________________________________________________________________________________
 // Macro definitions:
 //____________________________________________________________________________________________________
-#define ENC28J60_DUPLEX_FULL 0
-#define ENC28J60_MISO_GPIO 13
-#define ENC28J60_MOSI_GPIO 11
-#define ENC28J60_SCLK_GPIO 12
-#define ENC28J60_CS_GPIO   10
-#define ENC28J60_INT_GPIO  14
+//Comment out this line to use ENC28J60 Ethernet Module
 
-#define ENC28J60_SPI_CLOCK_MHZ 16
-#define ENC28J60_SPI_HOST SPI3_HOST
+#define ETHERNET_USE_W5500  
+
+//  Important Note:
+// Enable support for W5500 via menu-config:
+// Activate "Use W5500 (MAC RAW)" option along with 
+// "Support SPI to Ethernet Module" in the Ethernet section!
+
+#ifndef ETHERNET_USE_W5500
+#include "esp_eth_enc28j60.h"
+#endif
+
+#define ENC28J60_DUPLEX_FULL 0
+
+#define ETHERNET_MISO_GPIO 13
+#define ETHERNET_MOSI_GPIO 11
+#define ETHERNET_SCLK_GPIO 12
+#define ETHERNET_CS_GPIO   10
+#define ETHERNET_INT_GPIO  14
+
+#define ETHERNET_SPI_CLOCK_MHZ 16
+#define ETHERNET_SPI_HOST SPI3_HOST
 
 //____________________________________________________________________________________________________
 // Function prototypes:
@@ -93,6 +106,9 @@ void got_ip_event_handler(void *arg, esp_event_base_t event_base,
 }
 
 void ethernetInit() {
+
+#ifndef ETHERNET_USE_W5500
+
     //ESP_ERROR_CHECK(gpio_install_isr_service(0));     //This is already done in the SPI handshaking config
 
     // Initialize TCP/IP network interface (should be called only once in application)
@@ -115,24 +131,24 @@ void ethernetInit() {
     
 
     spi_bus_config_t buscfg = {
-        .miso_io_num = ENC28J60_MISO_GPIO,
-        .mosi_io_num = ENC28J60_MOSI_GPIO,
-        .sclk_io_num = ENC28J60_SCLK_GPIO,
+        .miso_io_num = ETHERNET_MISO_GPIO,
+        .mosi_io_num = ETHERNET_MOSI_GPIO,
+        .sclk_io_num = ETHERNET_SCLK_GPIO,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
     };
-    ESP_ERROR_CHECK(spi_bus_initialize(ENC28J60_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
+    ESP_ERROR_CHECK(spi_bus_initialize(ETHERNET_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
     /* ENC28J60 ethernet driver is based on spi driver */
     spi_device_interface_config_t spi_devcfg = {
         .mode = 0,
-        .clock_speed_hz = ENC28J60_SPI_CLOCK_MHZ * 1000 * 1000,
-        .spics_io_num = ENC28J60_CS_GPIO,
+        .clock_speed_hz = ETHERNET_SPI_CLOCK_MHZ * 1000 * 1000,
+        .spics_io_num = ETHERNET_CS_GPIO,
         .queue_size = 20,
-        .cs_ena_posttrans = enc28j60_cal_spi_cs_hold_time(ENC28J60_SPI_CLOCK_MHZ),
+        .cs_ena_posttrans = enc28j60_cal_spi_cs_hold_time(ETHERNET_SPI_CLOCK_MHZ),
     };
 
-    eth_enc28j60_config_t enc28j60_config = ETH_ENC28J60_DEFAULT_CONFIG(ENC28J60_SPI_HOST, &spi_devcfg);
-    enc28j60_config.int_gpio_num = ENC28J60_INT_GPIO;
+    eth_enc28j60_config_t enc28j60_config = ETH_ENC28J60_DEFAULT_CONFIG(ETHERNET_SPI_HOST, &spi_devcfg);
+    enc28j60_config.int_gpio_num = ETHERNET_INT_GPIO;
 
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
     esp_eth_mac_t *mac = esp_eth_mac_new_enc28j60(&enc28j60_config, &mac_config);
@@ -154,7 +170,7 @@ void ethernetInit() {
     });
 
     // ENC28J60 Errata #1 check
-    if (emac_enc28j60_get_chip_info(mac) < ENC28J60_REV_B5 && ENC28J60_SPI_CLOCK_MHZ < 8) {
+    if (emac_enc28j60_get_chip_info(mac) < ENC28J60_REV_B5 && ETHERNET_SPI_CLOCK_MHZ < 8) {
         ESP_LOGE(ethTAG, "SPI frequency must be at least 8 MHz for chip revision less than 5");
         ESP_ERROR_CHECK(ESP_FAIL);
     }
@@ -173,5 +189,99 @@ void ethernetInit() {
 
     /* start Ethernet driver state machine */
     ESP_ERROR_CHECK(esp_eth_start(eth_handle));
+
+#endif //ETHERNET_USE_W5500
+
+#ifdef ETHERNET_USE_W5500
+    // Initialize TCP/IP network interface (should be called only once in application)
+    ESP_ERROR_CHECK(esp_netif_init());
+    // Create default event loop that running in background
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+
+    // Create instance(s) of esp-netif for SPI Ethernet(s)
+    esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
+    esp_netif_config_t cfg_spi = {
+        .base = &esp_netif_config,
+        .stack = ESP_NETIF_NETSTACK_DEFAULT_ETH
+    };
+    //esp_netif_t *eth_netif_spi = NULL;
+    
+    esp_netif_config.if_key = "ETH_SPI";
+    esp_netif_config.if_desc = "eth";
+    esp_netif_config.route_prio = 30;
+    eth_netif = esp_netif_new(&cfg_spi);
+
+
+    // Uncomment this block to set fixed IP address:
+
+    /* esp_netif_dhcpc_stop(eth_netif);
+    esp_netif_ip_info_t ip_info;
+
+    esp_netif_str_to_ip4("192.168.1.20", &ip_info.ip);          //Set IP address
+    esp_netif_str_to_ip4("192.168.1.10", &ip_info.gw);          //Set Gateway
+    esp_netif_str_to_ip4("255.255.255.0", &ip_info.netmask);    //Set Subnet Mask
+
+    esp_netif_set_ip_info(eth_netif, &ip_info); */
+
+    // Init MAC and PHY configs to default
+    eth_mac_config_t mac_config_spi = ETH_MAC_DEFAULT_CONFIG();
+    eth_phy_config_t phy_config_spi = ETH_PHY_DEFAULT_CONFIG();
+
+    // Install GPIO ISR handler to be able to service SPI Eth modlues interrupts
+    //gpio_install_isr_service(0);        //This is already done in the SPI handshaking config
+
+    // Init SPI bus
+    spi_bus_config_t buscfg = {
+        .miso_io_num = ETHERNET_MISO_GPIO,
+        .mosi_io_num = ETHERNET_MOSI_GPIO,
+        .sclk_io_num = ETHERNET_SCLK_GPIO,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+    };
+    ESP_ERROR_CHECK(spi_bus_initialize(ETHERNET_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
+
+    // Init specific SPI Ethernet module configuration from Kconfig (CS GPIO, Interrupt GPIO, etc.)
+    
+    esp_eth_mac_t *mac_spi;
+    esp_eth_phy_t *phy_spi;
+    esp_eth_handle_t eth_handle_spi = NULL;
+
+    spi_device_interface_config_t spi_devcfg = {
+        .mode = 0,
+        .clock_speed_hz = ETHERNET_SPI_CLOCK_MHZ * 1000 * 1000,
+        .queue_size = 20
+    };
+    // Set SPI module Chip Select GPIO
+    spi_devcfg.spics_io_num = ETHERNET_CS_GPIO;
+    // Set remaining GPIO numbers and configuration used by the SPI module
+    phy_config_spi.phy_addr = 1;
+    phy_config_spi.reset_gpio_num = -1;
+
+    eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(ETHERNET_SPI_HOST, &spi_devcfg);
+    w5500_config.int_gpio_num = ETHERNET_INT_GPIO;
+    mac_spi = esp_eth_mac_new_w5500(&w5500_config, &mac_config_spi);
+    phy_spi = esp_eth_phy_new_w5500(&phy_config_spi);
+
+    esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(mac_spi, phy_spi);
+    ESP_ERROR_CHECK(esp_eth_driver_install(&eth_config_spi, &eth_handle_spi));
+
+    /* The SPI Ethernet module might not have a burned factory MAC address, we cat to set it manually.
+    02:00:00 is a Locally Administered OUI range so should not be used except when testing on a LAN under your control.
+    */
+    ESP_ERROR_CHECK(esp_eth_ioctl(eth_handle_spi, ETH_CMD_S_MAC_ADDR, (uint8_t[]) {
+        0x02, 0x00, 0x00, 0x12, 0x34, 0x56
+    }));
+
+    // attach Ethernet driver to TCP/IP stack
+    ESP_ERROR_CHECK(esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handle_spi)));
+
+    // Register user defined event handers
+    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
+
+    /* start Ethernet driver state machine */
+    ESP_ERROR_CHECK(esp_eth_start(eth_handle_spi));
+#endif //ETHERNET_USE_W5500
 }
 
