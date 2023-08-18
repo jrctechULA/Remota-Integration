@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "nvs.h"
+#include "nvs_flash.h"
+
 #include "esp_heap_caps.h"
 
 #include "freertos/FreeRTOS.h"
@@ -53,10 +56,15 @@
 #define MB_REG_HOLDING_START_AREA0  (0)
 #define MB_REG_HOLDING_START_AREA1  (s3Tables.anSize)   //16
 #define MB_REG_HOLDING_START_AREA2  (s3Tables.anSize + s3Tables.configSize)  //66
+#define MB_REG_HOLDING_START_AREA3 (MB_REG_HOLDING_START_AREA2 + 50) //116
+#define MB_REG_HOLDING_START_AREA4 (MB_REG_HOLDING_START_AREA3 + 32) //148
+#define MB_REG_INPUT_START_AREA1 (MB_REG_INPUT_START_AREA0 + 16) //16
 
 //____________________________________________________________________________________________________
 // Global declarations:
 //____________________________________________________________________________________________________
+static const char *TAG = "Remota-Main";
+static const char *mbSlaveTAG = "Modbus Slave";
 
 DMA_ATTR WORD_ALIGNED_ATTR uint16_t* recvbuf;
 DMA_ATTR WORD_ALIGNED_ATTR uint16_t* sendbuf;
@@ -68,6 +76,9 @@ typedef struct {
     uint16_t** digTbl;     // Vector de apuntadores a los vectores Digitales
     uint16_t** configTbl;  // Vector de apuntadores a los vectores de configuración
     uint16_t** auxTbl;     // Vector de apuntadores a los vectores auxiliares
+    float* scalingFactor; //Vector de factores de escalamiento (pendiente m)
+    float* scalingOffset; //Vector de desplazamientos en la escala (corte con y -> b)
+    float* scaledValues;  //Vector de apuntadores a los vectores de valores escalados
 	uint8_t anSize;        // Tamaño de los vectores analógicos
     uint8_t digSize;       // Tamaño de los vectores analógicos
     uint8_t configSize;    // Tamaño de los vectores de configuración
@@ -92,7 +103,9 @@ mb_register_area_descriptor_t reg_area; // Modbus register area descriptor struc
 // Statically allocate and initialize the spinlock
 //static portMUX_TYPE mb_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
-static const char *mbSlaveTAG = "Modbus Slave";
+nvs_handle_t app_nvs_handle;
+
+uint8_t modbus_slave_initialized = 0;
 
 //____________________________________________________________________________________________________
 // Function prototypes:
@@ -109,6 +122,7 @@ esp_err_t tablesInit(varTables_t *tables,
                      uint8_t auxSize);      //Tamaño de tablas auxiliares
 
 esp_err_t tablePrint(uint16_t *table, uint8_t size);
+esp_err_t tablePrintFloat(float *table, uint8_t size);
 esp_err_t tablesUnload(varTables_t *tables);
 esp_err_t readAnalogTable(varTables_t *Tables, uint8_t tbl);
 esp_err_t readDigitalTable(varTables_t *Tables, uint8_t tbl);
@@ -136,6 +150,15 @@ void print_spi_stats(void);
 void spi_task(void *pvParameters);
 
 esp_err_t modbus_slave_init(void);
+
+void scaling_task(void *pvParameters);
+void mb_event_check_task(void *pvParameters);
+
+esp_err_t init_nvs(void);
+esp_err_t read_nvs(char *key, uint16_t *value);
+esp_err_t write_nvs(char *key, uint16_t value);
+esp_err_t create_table_nvs(char *c, uint8_t tableSize);
+esp_err_t create_float_table_nvs(char *c, uint8_t tableSize);
 
 
 /*
@@ -166,8 +189,6 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
 //____________________________________________________________________________________________________
 void app_main(void)
 {
-    static const char TAG[] = "Master Main";
-
     gpio_reset_pin(ledYellow);
     gpio_set_direction(ledYellow, GPIO_MODE_OUTPUT);
     gpio_set_level(ledYellow,0);
@@ -200,9 +221,48 @@ void app_main(void)
                           50,   //Tamaño de tablas de configuración
                           50);  //Tamaño de tablas auxiliares
 
-    // Now the tables have been created, it's time for initial config:
-    //i.e.: Set the debug level:
-    CFG_REMOTA_LOG_LEVEL = (uint16_t)esp_log_level_get(TAG);
+    //nvs_flash_erase();
+
+    ESP_ERROR_CHECK(init_nvs());
+        
+    //Create tables in the nvs namespace (if they don't exist):
+    create_table_nvs("C", s3Tables.configSize);     //For config table
+    create_table_nvs("A", s3Tables.auxSize);        //For aux table
+    create_float_table_nvs("SF", s3Tables.anSize);        //For Scaling factors table
+    create_float_table_nvs("SO", s3Tables.anSize);        //For Scaling offsets table
+
+    for (int i = 0; i < s3Tables.configSize; i++)
+    {
+        char key[5] = {'\0'};
+        sprintf(key, "C%i", i);
+        read_nvs(key, &s3Tables.configTbl[0][i]);
+    }
+
+    for (int i = 0; i < s3Tables.auxSize; i++)
+    {
+        char key[5] = {'\0'};
+        sprintf(key, "A%i", i);
+        read_nvs(key, &s3Tables.auxTbl[0][i]);
+    }
+
+    for (int i = 0; i < s3Tables.anSize; i++)
+    {
+        char key[6] = {'\0'};
+        sprintf(key, "SF%i", i);
+        size_t size = sizeof(float);
+        esp_err_t r = nvs_get_blob(app_nvs_handle, key, &s3Tables.scalingFactor[i], &size);
+        ESP_ERROR_CHECK(r);
+    }
+
+    for (int i = 0; i < s3Tables.anSize; i++)
+    {
+        char key[6] = {'\0'};
+        sprintf(key, "SO%i", i);
+        size_t size = sizeof(float);
+        esp_err_t r = nvs_get_blob(app_nvs_handle, key, &s3Tables.scalingOffset[i], &size);
+        ESP_ERROR_CHECK(r);
+    }
+    
 
     sendbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
     recvbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
@@ -228,9 +288,28 @@ void app_main(void)
                 0);          
     xSemaphoreGive(spiTaskSem);
 
+    xTaskCreatePinnedToCore(scaling_task,
+                "scaling_task",
+                STACK_SIZE,
+                NULL,
+                (UBaseType_t) 0U,       //Priority Level 0
+                &xHandle,
+                0);
+
+    xTaskCreatePinnedToCore(mb_event_check_task,
+                "mb_event_check_task",
+                STACK_SIZE,
+                NULL,
+                (UBaseType_t) 2U,       //Priority Level 0
+                &xHandle,
+                1);
+
     ethernetInit();
 
     modbus_slave_init();
+
+    esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
+    esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
 
     int counter = 0;
 
@@ -254,6 +333,8 @@ void app_main(void)
         
         ESP_LOGI(TAG, "Analog inputs table:");
         tablePrint(s3Tables.anTbl[0],  s3Tables.anSize);
+        ESP_LOGI(TAG, "Scaled input values:");
+        tablePrintFloat(s3Tables.scaledValues, s3Tables.anSize);
         ESP_LOGI(TAG, "Digital inputs table:");
         tablePrint(s3Tables.digTbl[0], s3Tables.digSize);
         ESP_LOGW(TAG, "Analog outputs table:");
@@ -277,7 +358,10 @@ void app_main(void)
         }
 
         //Check for config table changes:
-        if (CFG_REMOTA_LOG_LEVEL != (uint16_t)esp_log_level_get(TAG)){
+        /* uint16_t t;
+        read_nvs("C49", &t);
+        if (CFG_REMOTA_LOG_LEVEL != t){
+            write_nvs("C49", CFG_REMOTA_LOG_LEVEL);
             switch (CFG_REMOTA_LOG_LEVEL){
                 case 0:
                     esp_log_level_set(TAG, ESP_LOG_NONE);
@@ -300,7 +384,7 @@ void app_main(void)
                 default:
                     CFG_REMOTA_LOG_LEVEL = (uint16_t)esp_log_level_get(TAG);
             }
-        }
+        } */
     }
     
     //Liberar memoria
@@ -325,7 +409,7 @@ esp_err_t tablesInit(varTables_t *tables,
                      uint8_t configSize,
                      uint8_t auxSize)
 {
-    static const char TAG[] = "tablesInit";
+    //static const char TAG[] = "tablesInit";
 
     tables->numAnTbls = numAnTbls;
     tables->numDigTbls = numDigTbls;
@@ -370,6 +454,36 @@ esp_err_t tablesInit(varTables_t *tables,
         memset(tables->anTbl[i], 0, tables->anSize * 2);
 	}
 
+    //Create scaling tables: (The size of these tables are the same as anSize)
+    //Scaling factors (m factors in y=mx+b)
+    tables->scalingFactor = (float*)malloc(tables->anSize * sizeof(float));
+    if (tables->scalingFactor == NULL){
+        ESP_LOGE(TAG, "Error al asignar memoria!\n");
+        return ESP_FAIL;
+    }
+    //Default value is 1 (no scaling)
+    for (size_t i = 0; i < tables->anSize; i++)
+    {
+        tables->scalingFactor[i] = 1;
+    }
+        
+
+    //Scaling offsets (b offset in y=mx+b)
+    tables->scalingOffset = (float*)malloc(tables->anSize * sizeof(float));
+    if (tables->scalingOffset == NULL){
+        ESP_LOGE(TAG, "Error al asignar memoria!\n");
+        return ESP_FAIL;
+    }
+    memset(tables->scalingOffset, 0, tables->anSize * 4);  //Default value is 0 (no offset)
+
+    //Scaled values (Calculated values after scaling factors applied)
+    tables->scaledValues = (float*)malloc(tables->anSize * sizeof(float));
+    if (tables->scaledValues == NULL){
+        ESP_LOGE(TAG, "Error al asignar memoria!\n");
+        return ESP_FAIL;
+    }
+    memset(tables->scaledValues, 0, tables->anSize * 4);
+
     for (int i=0; i< tables->numDigTbls; i++)
 	{
 		tables->digTbl[i] = (uint16_t*)malloc(tables->digSize * sizeof(uint16_t));
@@ -406,21 +520,35 @@ esp_err_t tablesInit(varTables_t *tables,
 }
 
 esp_err_t tablePrint(uint16_t *table, uint8_t size){
-	static const char TAG[] = "Table print";
+	//static const char TAG[] = "Table print";
     esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
     char text[350] = {'\0'};
     char buffer[10] = {'\0'};
-	for (int i=0; i < size; i++){
-	    sprintf(buffer, "%u ",table[i]);
+    for (int i=0; i < size; i++){
+        sprintf(buffer, "%u ",table[i]);
         strcat(text, buffer);
         strcat(text, " ");
-	}
+    }
+    ESP_LOGI(TAG, "%s\n", text);
+    return ESP_OK;
+}
+
+esp_err_t tablePrintFloat(float *table, uint8_t size){
+	//static const char TAG[] = "Table print";
+    esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
+    char text[350] = {'\0'};
+    char buffer[10] = {'\0'};
+    for (int i=0; i < size; i++){
+        sprintf(buffer, "%0.2f ",table[i]);
+        strcat(text, buffer);
+        strcat(text, " ");
+    }
     ESP_LOGI(TAG, "%s\n", text);
     return ESP_OK;
 }
 
 esp_err_t tablesUnload(varTables_t *tables){
-    static const char TAG[] = "tablesUnload";
+    //static const char TAG[] = "tablesUnload";
     for (int i=0; i<tables->numAnTbls; i++){  //Libera primero cada vector (int*)
 		free(tables->anTbl[i]);
 	}
@@ -906,7 +1034,7 @@ void spi_transaction_counter(){
 }
 
 void print_spi_stats(){
-    static const char TAG[] = "SPI stats";
+    //static const char TAG[] = "SPI stats";
     esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
     uint32_t trans_count = ((uint32_t)(SPI_TRANSACTION_COUNT_H) << 16) | SPI_TRANSACTION_COUNT_L;
     ESP_LOGD(TAG, "Transaction count: %lu Error count: %u Eror ratio: %.2f%%", 
@@ -1009,6 +1137,27 @@ esp_err_t modbus_slave_init(void){
     reg_area.size = (s3Tables.auxSize) << 1;
     ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
 
+    //Scaling Factors Table: (Slopes: m)
+    reg_area.type = MB_PARAM_HOLDING;
+    reg_area.start_offset = MB_REG_HOLDING_START_AREA3;  //116
+    reg_area.address = (void*)&s3Tables.scalingFactor[0];
+    reg_area.size = (s3Tables.anSize) * 4;
+    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+    //Scaling Offsets Table: (y cuts: b)
+    reg_area.type = MB_PARAM_HOLDING;
+    reg_area.start_offset = MB_REG_HOLDING_START_AREA4;  //148
+    reg_area.address = (void*)&s3Tables.scalingOffset[0];
+    reg_area.size = (s3Tables.anSize) * 4;
+    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+    //Scaling Values Table: (Analog inputs after scaling is applied)
+    reg_area.type = MB_PARAM_INPUT;
+    reg_area.start_offset = MB_REG_INPUT_START_AREA1;  //16
+    reg_area.address = (void*)&s3Tables.scaledValues[0];
+    reg_area.size = (s3Tables.anSize) * 4;
+    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
     //Stage 3. Slave Communication Options:
 
     mb_communication_info_t comm_info = {
@@ -1026,5 +1175,164 @@ esp_err_t modbus_slave_init(void){
 
     ESP_ERROR_CHECK(mbc_slave_start());
 
+    modbus_slave_initialized = 1;
+
     return ESP_OK;
+}
+
+void scaling_task(void *pvParameters){
+    float y, m, x, b;
+
+    while (1)
+    {
+        for (int i = 0; i < s3Tables.anSize; i++){
+            m = s3Tables.scalingFactor[i];
+            x = s3Tables.anTbl[0][i];
+            b = s3Tables.scalingOffset[i];
+            y =  m * x + b;
+            s3Tables.scaledValues[i] = y;
+        }
+        taskYIELD();
+    }
+    
+}
+
+void mb_event_check_task(void *pvParameters){
+    //static const char *TAG = "MB_EVENT_CHK";
+    mb_param_info_t reg_info;
+
+    while(!modbus_slave_initialized)
+        continue;
+
+    while (1)
+    {
+        memset(&reg_info, 0, sizeof(mb_param_info_t));
+        mb_event_group_t event = mbc_slave_check_event(MB_EVENT_HOLDING_REG_WR);
+        
+        if (event & MB_EVENT_HOLDING_REG_WR){  
+            //mbc_slave_get_param_info(&reg_info, 10 / portTICK_PERIOD_MS);
+            for (int i = 0; i<=CONFIG_FMB_CONTROLLER_NOTIFY_QUEUE_SIZE; i++)
+            {
+                mbc_slave_get_param_info(&reg_info, 10 / portTICK_PERIOD_MS);
+                printf("HOLDING (%lu us), ADDR:%lu, TYPE:%lu, SIZE:%u\n",
+                        (uint32_t)reg_info.time_stamp,
+                        (uint32_t)reg_info.mb_offset,
+                        (uint32_t)reg_info.type,
+                        reg_info.size);
+                if(reg_info.type == MB_EVENT_HOLDING_REG_WR){
+                    if((reg_info.mb_offset < 16)){
+                        printf("Register belongs to analog outputs table\n");
+                    }
+                    else if((reg_info.mb_offset >= 16) && (reg_info.mb_offset < 66)){
+                        printf("Register belongs to config table\n");
+                        uint8_t index = reg_info.mb_offset - 16;
+                        char key[5] = {'\0'};
+                        sprintf(key, "C%u", index);
+                        write_nvs(key, s3Tables.configTbl[0][index]);
+                    }
+                    else if((reg_info.mb_offset >= 66) && (reg_info.mb_offset < 116)){
+                        printf("Register belongs to aux table\n");
+                        uint8_t index = reg_info.mb_offset - 66;
+                        char key[5] = {'\0'};
+                        sprintf(key, "A%u", index);
+                        write_nvs(key, s3Tables.auxTbl[0][index]);
+                    }
+                    else if((reg_info.mb_offset >= 116) && (reg_info.mb_offset < 148)){
+                        printf("Register belongs to scaling factors table\n");
+                        uint8_t index = (reg_info.mb_offset - 116) >> 1;
+                        char key[6] = {'\0'};
+                        sprintf(key, "SF%u", index);
+                        nvs_set_blob(app_nvs_handle, key, &s3Tables.scalingFactor[index], 4);
+                    }
+                    else if((reg_info.mb_offset >= 148) && (reg_info.mb_offset < 180)){
+                        printf("Register belongs to scaling offsets table\n");
+                        uint8_t index = (reg_info.mb_offset - 148) >> 1;
+                        char key[6] = {'\0'};
+                        sprintf(key, "SO%u", index);
+                        nvs_set_blob(app_nvs_handle, key, &s3Tables.scalingOffset[index], 4);
+                    }
+                }
+            }
+            
+            
+            /* printf("HOLDING (%lu us), ADDR:%lu, TYPE:%lu, INST_ADDR:0x%.4lx, VALUE: %u, SIZE:%u\n",
+                    (uint32_t)reg_info.time_stamp,
+                    (uint32_t)reg_info.mb_offset,
+                    (uint32_t)reg_info.type,
+                    (uint32_t)reg_info.address,
+                    (uint16_t)*reg_info.address,
+                    reg_info.size); */
+            
+        }
+    }
+    
+    taskYIELD();
+}
+
+esp_err_t init_nvs(void){
+    esp_err_t r;
+    nvs_flash_init();
+    r = nvs_open("Main_Namespace", NVS_READWRITE, &app_nvs_handle);
+    return r;
+}
+
+esp_err_t read_nvs(char *key, uint16_t *value){
+    esp_err_t r;
+    r = nvs_get_u16(app_nvs_handle, key, value);
+    return r;
+}
+
+esp_err_t write_nvs(char *key, uint16_t value){
+    esp_err_t r;
+    r = nvs_set_u16(app_nvs_handle, key, value);
+    return r;
+}
+
+esp_err_t create_table_nvs(char *c, uint8_t tableSize){
+    esp_err_t r = ESP_OK;
+    uint16_t value;
+    char key[5] = {'\0'};
+    sprintf(key, "%s0", c);
+    //printf("%s", key);
+    r = nvs_get_u16(app_nvs_handle, key, &value);
+    if (r == ESP_ERR_NVS_NOT_FOUND)
+    {
+        for (int i = 0; i < tableSize; i++)
+        {
+            sprintf(key, "%s%i", c, i);
+            printf("%s ", key);
+            r = nvs_set_u16(app_nvs_handle, key, 0);
+            if (r != ESP_OK)
+                return r;
+        }
+        printf("\n");
+    }
+    else
+        ESP_LOGI(TAG, "The table %s already exist in nvs namespace", c);
+    return r;
+}
+
+esp_err_t create_float_table_nvs(char *c, uint8_t tableSize){
+    esp_err_t r = ESP_OK;
+    float value = 0;
+    size_t size = sizeof(float);
+    char key[5] = {'\0'};
+    sprintf(key, "%s0", c);
+    //printf("%s", key);
+    r = nvs_get_blob(app_nvs_handle, key, &value, &size);
+    if (r == ESP_ERR_NVS_NOT_FOUND)
+    {
+        for (int i = 0; i < tableSize; i++)
+        {
+            sprintf(key, "%s%i", c, i);
+            printf("%s ", key);
+            r = nvs_set_blob(app_nvs_handle, key, &value, size);
+            if (r != ESP_OK)
+                return r;
+        }
+        printf("\n");
+    }
+    else
+        ESP_LOGI(TAG, "The table %s already exist in nvs namespace", c);
+    return r;
 }

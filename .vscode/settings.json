@@ -9,10 +9,20 @@
     },
     "idf.espIdfPathWin": "C:\\Users\\javie\\esp\\esp-idf",
     "idf.openOcdConfigs": [
-        "board/esp32s3-bridge.cfg"
+        "board/esp32s3-builtin.cfg"
     ],
     "idf.portWin": "COM3",
     "idf.pythonBinPathWin": "C:\\Users\\javie\\.espressif\\python_env\\idf5.0_py3.8_env\\Scripts\\python.exe",
     "idf.toolsPathWin": "C:\\Users\\javie\\.espressif",
-    "idf.flashType": "UART"
+    "idf.flashType": "UART",
+    "files.associations": {
+        "nvs.h": "c",
+        "nvs_flash.h": "c",
+        "array": "c",
+        "bitset": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "regex": "c",
+        "utility": "c"
+    }
 }
