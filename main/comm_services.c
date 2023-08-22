@@ -15,17 +15,23 @@ ________________________________________________________________________________
 #include "driver/spi_master.h"
 #include "esp_log.h"
 
+#include "remota_globals.h"
+
 //____________________________________________________________________________________________________
 // Macro definitions:
 //____________________________________________________________________________________________________
 //Comment out this line to use dynamic IP, via DHCP Server:
 
-//#define ETHERNET_USE_STATIC_IP
+#define ETHERNET_USE_STATIC_IP
 
 #ifdef ETHERNET_USE_STATIC_IP
 
-#define ETHERNET_IP_ADDR        "192.168.1.20"
+/* #define ETHERNET_IP_ADDR        "192.168.1.20"
 #define ETHERNET_GATEWAY        "192.168.1.10"
+#define ETHERNET_SUBNET_MASK    "255.255.255.0" */
+
+#define ETHERNET_IP_ADDR        "172.16.0.100"
+#define ETHERNET_GATEWAY        "172.16.0.1"
 #define ETHERNET_SUBNET_MASK    "255.255.255.0"
 
 #endif //ETHERNET_USE_STATIC_IP
@@ -57,11 +63,12 @@ ________________________________________________________________________________
 //____________________________________________________________________________________________________
 // Function prototypes:
 //____________________________________________________________________________________________________
-/* void ethernetInit(void);
+void ethernetInit(void);
 void eth_event_handler(void *arg, esp_event_base_t event_base,
                               int32_t event_id, void *event_data);
 void got_ip_event_handler(void *arg, esp_event_base_t event_base,
-                                 int32_t event_id, void *event_data); */
+                                 int32_t event_id, void *event_data);
+void set_ip_eth0(void);
 
 //____________________________________________________________________________________________________
 // Global declarations:
@@ -130,18 +137,37 @@ void ethernetInit() {
     esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_ETH();
     eth_netif = esp_netif_new(&netif_cfg);
 
-    #ifdef ETHERNET_USE_STATIC_IP
+    if (!CFG_DHCP){
+        esp_netif_dhcpc_stop(eth_netif);
+        esp_netif_ip_info_t ip_info;
 
-    esp_netif_dhcpc_stop(eth_netif);
-    esp_netif_ip_info_t ip_info;
+        /* char IP0[16] = {'\0'};  
+        sprintf(IP0, "%hhu.%hhu.%hhu.%hhu", *CFG_IP0, *(CFG_IP0+1), *(CFG_IP0+2), *(CFG_IP0+3)); */
+        /* char GW[16] = {'\0'};  
+        sprintf(GW, "%hhu.%hhu.%hhu.%hhu", *CFG_GW, *(CFG_GW+1), *(CFG_GW+2), *(CFG_GW+3)); */
 
-    esp_netif_str_to_ip4(ETHERNET_IP_ADDR, &ip_info.ip);          //Set IP address
-    esp_netif_str_to_ip4(ETHERNET_GATEWAY, &ip_info.gw);          //Set Gateway
-    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
+        char IP0_str[16] = {'\0'};
+        uint8_t IP0[4] = {0};
+        IP0[0] = *CFG_IP0 >> 8;
+        IP0[1] = *CFG_IP0 & 0x00FF;
+        IP0[2] = *(CFG_IP0+1) >> 8;
+        IP0[3] = *(CFG_IP0+1) & 0x00FF;
+        sprintf(IP0_str, "%hhu.%hhu.%hhu.%hhu", IP0[0], IP0[1], IP0[2], IP0[3]);
 
-    esp_netif_set_ip_info(eth_netif, &ip_info);
-    
-    #endif //ETHERNET_USE_STATIC_IP
+        char GW_str[16] = {'\0'};
+        uint8_t GW[4] = {0};
+        GW[0] = *CFG_GW >> 8;
+        GW[1] = *CFG_GW & 0x00FF;
+        GW[2] = *(CFG_GW+1) >> 8;
+        GW[3] = *(CFG_GW+1) & 0x00FF;
+        sprintf(GW_str, "%hhu.%hhu.%hhu.%hhu", GW[0], GW[1], GW[2], GW[3]);
+
+        esp_netif_str_to_ip4(IP0_str, &ip_info.ip);          //Set IP address
+        esp_netif_str_to_ip4(GW_str, &ip_info.gw);          //Set Gateway
+        esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
+
+        esp_netif_set_ip_info(eth_netif, &ip_info);
+    }
     
 
     spi_bus_config_t buscfg = {
@@ -226,17 +252,11 @@ void ethernetInit() {
     esp_netif_config.route_prio = 30;
     eth_netif = esp_netif_new(&cfg_spi);
 
-#ifdef ETHERNET_USE_STATIC_IP
-    esp_netif_dhcpc_stop(eth_netif);
-    esp_netif_ip_info_t ip_info;
+    if (!CFG_DHCP){     //Static IP Configuration:
+        esp_netif_dhcpc_stop(eth_netif);
+        set_ip_eth0();
+    }
 
-    esp_netif_str_to_ip4(ETHERNET_IP_ADDR, &ip_info.ip);          //Set IP address
-    esp_netif_str_to_ip4(ETHERNET_GATEWAY, &ip_info.gw);          //Set Gateway
-    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
-
-    esp_netif_set_ip_info(eth_netif, &ip_info);
-
-#endif //ETHERNET_USE_STATIC_IP
 
     // Init MAC and PHY configs to default
     eth_mac_config_t mac_config_spi = ETH_MAC_DEFAULT_CONFIG();
@@ -297,5 +317,50 @@ void ethernetInit() {
     /* start Ethernet driver state machine */
     ESP_ERROR_CHECK(esp_eth_start(eth_handle_spi));
 #endif //ETHERNET_USE_W5500
+}
+
+void set_ip_eth0(void){
+    esp_netif_ip_info_t ip_info;
+
+    /* char IP0[16] = {'\0'};  
+    sprintf(IP0, "%hhu.%hhu.%hhu.%hhu", *CFG_IP0, *(CFG_IP0+1), *(CFG_IP0+2), *(CFG_IP0+3)); */
+    /* char GW[16] = {'\0'};  
+    sprintf(GW, "%hhu.%hhu.%hhu.%hhu", *CFG_GW, *(CFG_GW+1), *(CFG_GW+2), *(CFG_GW+3)); */
+
+    char IP0_str[16] = {'\0'};
+    uint8_t IP0[4] = {0};
+    IP0[0] = *CFG_IP0 >> 8;
+    IP0[1] = *CFG_IP0 & 0x00FF;
+    IP0[2] = *(CFG_IP0+1) >> 8;
+    IP0[3] = *(CFG_IP0+1) & 0x00FF;
+    sprintf(IP0_str, "%hhu.%hhu.%hhu.%hhu", IP0[0], IP0[1], IP0[2], IP0[3]);
+
+    char GW_str[16] = {'\0'};
+    uint8_t GW[4] = {0};
+    GW[0] = *CFG_GW >> 8;
+    GW[1] = *CFG_GW & 0x00FF;
+    GW[2] = *(CFG_GW+1) >> 8;
+    GW[3] = *(CFG_GW+1) & 0x00FF;
+    sprintf(GW_str, "%hhu.%hhu.%hhu.%hhu", GW[0], GW[1], GW[2], GW[3]);
+
+    esp_netif_str_to_ip4(IP0_str, &ip_info.ip);          //Set IP address
+    esp_netif_str_to_ip4(GW_str, &ip_info.gw);          //Set Gateway
+    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
+
+    esp_netif_set_ip_info(eth_netif, &ip_info);
+}
+
+void set_DHCP(void){
+    if (CFG_DHCP){
+        esp_netif_dhcpc_start(eth_netif);
+        ESP_LOGI(TAG, "DHCP Started");
+    }
+
+    else{
+        esp_netif_dhcpc_stop(eth_netif);
+        ESP_LOGI(TAG, "DHCP Stopped");
+        set_ip_eth0();
+        ESP_LOGI(TAG, "Static IP config applied");
+    }
 }
 

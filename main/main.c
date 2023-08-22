@@ -10,6 +10,8 @@
 
 #include "esp_heap_caps.h"
 
+//#include "esp_task_wdt.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -23,143 +25,37 @@
 #define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 //#include "esp_log.h"              //Already included in "comm_services.c" file
 
-#include "comm_services.c"
+
+
 
 #include "mbcontroller.h"
 
 #include "esp_timer.h"
 
+#include "remota_globals.h"
+#include "comm_services.c"
+
 //____________________________________________________________________________________________________
 // Macro definitions:
 //____________________________________________________________________________________________________
+//remota globals block 1 start
 
-#define ledYellow 37
-#define ledGreen 36
-
-#define STACK_SIZE 3072
-#define SPI_BUFFER_SIZE 55
-
-#define SPI_TRANSACTION_COUNT_L s3Tables.auxTbl[0][0]
-#define SPI_TRANSACTION_COUNT_H s3Tables.auxTbl[0][1]
-#define SPI_ERROR_COUNT s3Tables.auxTbl[0][2]
-
-#define SPI_EXCHANGE_TIME s3Tables.auxTbl[0][3]
-#define SPI_CYCLE_TIME s3Tables.auxTbl[0][4]
-
-#define CFG_REMOTA_LOG_LEVEL s3Tables.configTbl[0][49]
-
-#define CONFIG_FREERTOS_HZ 100
-
-#define MB_REG_INPUT_START_AREA0    (0)
-#define MB_REG_DISCRETE_START_AREA0 (0)
-#define MB_REG_COIL_START_AREA0     (0)
-#define MB_REG_HOLDING_START_AREA0  (0)
-#define MB_REG_HOLDING_START_AREA1  (s3Tables.anSize)   //16
-#define MB_REG_HOLDING_START_AREA2  (s3Tables.anSize + s3Tables.configSize)  //66
-#define MB_REG_HOLDING_START_AREA3 (MB_REG_HOLDING_START_AREA2 + 50) //116
-#define MB_REG_HOLDING_START_AREA4 (MB_REG_HOLDING_START_AREA3 + 32) //148
-#define MB_REG_INPUT_START_AREA1 (MB_REG_INPUT_START_AREA0 + 16) //16
-
+//remota globals block 1 end
 //____________________________________________________________________________________________________
 // Global declarations:
 //____________________________________________________________________________________________________
-static const char *TAG = "Remota-Main";
-static const char *mbSlaveTAG = "Modbus Slave";
+//remota globals block 2 start
 
-DMA_ATTR WORD_ALIGNED_ATTR uint16_t* recvbuf;
-DMA_ATTR WORD_ALIGNED_ATTR uint16_t* sendbuf;
 
-spi_device_handle_t handle;
-
-typedef struct {
-	uint16_t** anTbl;      // Vector de apuntadores a los vectores analógicos
-    uint16_t** digTbl;     // Vector de apuntadores a los vectores Digitales
-    uint16_t** configTbl;  // Vector de apuntadores a los vectores de configuración
-    uint16_t** auxTbl;     // Vector de apuntadores a los vectores auxiliares
-    float* scalingFactor; //Vector de factores de escalamiento (pendiente m)
-    float* scalingOffset; //Vector de desplazamientos en la escala (corte con y -> b)
-    float* scaledValues;  //Vector de apuntadores a los vectores de valores escalados
-	uint8_t anSize;        // Tamaño de los vectores analógicos
-    uint8_t digSize;       // Tamaño de los vectores analógicos
-    uint8_t configSize;    // Tamaño de los vectores de configuración
-    uint8_t auxSize;       // Tamaño de los vectores auxiliares
-	uint8_t numAnTbls;     // Número de vectores analógicos
-    uint8_t numDigTbls;    // Número de vectores digitales
-    uint8_t numConfigTbls; // Número de vectores de configuración
-    uint8_t numAuxTbls;    // Número de vectores auxiliares
-} varTables_t;
-
-varTables_t s3Tables;
-
-//The semaphore indicating the slave is ready to receive stuff.
-QueueHandle_t rdySem;
-QueueHandle_t spiTaskSem;
-
-uint16_t cycleTimeStart, cycleTimeFinish;
-
-//Modbus globals:
-mb_register_area_descriptor_t reg_area; // Modbus register area descriptor structure
-
-// Statically allocate and initialize the spinlock
-//static portMUX_TYPE mb_spinlock = portMUX_INITIALIZER_UNLOCKED;
-
-nvs_handle_t app_nvs_handle;
-
-uint8_t modbus_slave_initialized = 0;
+//remota globals block 2 end
 
 //____________________________________________________________________________________________________
 // Function prototypes:
 //____________________________________________________________________________________________________
 
-esp_err_t tablesInit(varTables_t *tables, 
-                     uint8_t numAnTbls,     //Tablas de variables analógicas
-                     uint8_t numDigTbls,    //Tablas de variables digitales
-                     uint8_t numConfigTbls, //Tablas de configuración
-                     uint8_t numAuxTbls,    //Tablas auxiliares
-                     uint8_t anSize,        //Tamaño de tablas analógicas
-                     uint8_t digSize,       //Tamaño de tablas digitales
-                     uint8_t configSize,    //Tamaño de tablas de configuración
-                     uint8_t auxSize);      //Tamaño de tablas auxiliares
+//remota globals block 3 start
 
-esp_err_t tablePrint(uint16_t *table, uint8_t size);
-esp_err_t tablePrintFloat(float *table, uint8_t size);
-esp_err_t tablesUnload(varTables_t *tables);
-esp_err_t readAnalogTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t readDigitalTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t readConfigTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t readAuxTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t readAllTables(varTables_t *Tables);
-esp_err_t readAnalogData(varTables_t *Tables, uint8_t tbl, uint8_t dataIndex);
-esp_err_t readDigitalData(varTables_t *Tables, uint8_t tbl, uint8_t dataIndex);
-esp_err_t readConfigData(varTables_t *Tables, uint8_t tbl, uint8_t dataIndex);
-esp_err_t readAuxData(varTables_t *Tables, uint8_t tbl, uint8_t dataIndex);
-esp_err_t writeAnalogTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t writeDigitalTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t writeConfigTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t writeAuxTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t writeAnalogData(uint8_t tbl, uint8_t dataIndex, uint16_t payload);
-esp_err_t writeDigitalData(uint8_t tbl, uint8_t dataIndex, uint16_t payload);
-esp_err_t writeConfigData(uint8_t tbl, uint8_t dataIndex, uint16_t payload);
-esp_err_t writeAuxData(uint8_t tbl, uint8_t dataIndex, uint16_t payload);
-
-esp_err_t exchangeData(varTables_t *Tables);
-
-void spi_transaction_counter(void);
-void print_spi_stats(void);
-
-void spi_task(void *pvParameters);
-
-esp_err_t modbus_slave_init(void);
-
-void scaling_task(void *pvParameters);
-void mb_event_check_task(void *pvParameters);
-
-esp_err_t init_nvs(void);
-esp_err_t read_nvs(char *key, uint16_t *value);
-esp_err_t write_nvs(char *key, uint16_t value);
-esp_err_t create_table_nvs(char *c, uint8_t tableSize);
-esp_err_t create_float_table_nvs(char *c, uint8_t tableSize);
-
+//remota globals block 3 end
 
 /*
 This ISR is called when the handshake line goes high.
@@ -271,7 +167,6 @@ void app_main(void)
     rdySem = xSemaphoreCreateBinary();
     spiTaskSem = xSemaphoreCreateBinary();
     
-    TaskHandle_t xHandle = NULL;
     /* xTaskCreate(spi_task,
                 "spi_task",
                 STACK_SIZE,
@@ -284,7 +179,7 @@ void app_main(void)
                 STACK_SIZE,
                 NULL,
                 (UBaseType_t) 1U,       //Priority Level 1
-                &xHandle,
+                &xSPITaskHandle,
                 0);          
     xSemaphoreGive(spiTaskSem);
 
@@ -293,7 +188,7 @@ void app_main(void)
                 STACK_SIZE,
                 NULL,
                 (UBaseType_t) 0U,       //Priority Level 0
-                &xHandle,
+                &xScalingTaskHandle,
                 0);
 
     xTaskCreatePinnedToCore(mb_event_check_task,
@@ -301,7 +196,7 @@ void app_main(void)
                 STACK_SIZE,
                 NULL,
                 (UBaseType_t) 2U,       //Priority Level 0
-                &xHandle,
+                &xMBEventCheckTaskHandle,
                 1);
 
     ethernetInit();
@@ -310,81 +205,119 @@ void app_main(void)
 
     esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
     esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
+    esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
 
     int counter = 0;
 
     while (1){ 
-
-        //Any change in the Modbus registers should be protected by critical section:
-
-        /* portENTER_CRITICAL(&mb_spinlock);
-        for (int i=0; i<s3Tables.anSize; i++){
-            s3Tables.anTbl[1][i] +=5;
-        }
-        for (int i=0; i<s3Tables.digSize; i++){
-            s3Tables.digTbl[1][i] +=5;
-        }
-        portEXIT_CRITICAL(&mb_spinlock); */
-
-        print_spi_stats();
-        //esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
-        ESP_LOGD(TAG, "SPI exchange task time: %u us", SPI_EXCHANGE_TIME);
-        ESP_LOGD(TAG, "SPI cycle task time: %u us\n", SPI_CYCLE_TIME);
-        
-        ESP_LOGI(TAG, "Analog inputs table:");
-        tablePrint(s3Tables.anTbl[0],  s3Tables.anSize);
-        ESP_LOGI(TAG, "Scaled input values:");
-        tablePrintFloat(s3Tables.scaledValues, s3Tables.anSize);
-        ESP_LOGI(TAG, "Digital inputs table:");
-        tablePrint(s3Tables.digTbl[0], s3Tables.digSize);
-        ESP_LOGW(TAG, "Analog outputs table:");
-        tablePrint(s3Tables.anTbl[1],  s3Tables.anSize);
-        ESP_LOGW(TAG, "Digital outputs table:");
-        tablePrint(s3Tables.digTbl[1], s3Tables.digSize);
-
-        gpio_set_level(ledGreen, 0);
-        vTaskDelay(pdMS_TO_TICKS(500));       
-        gpio_set_level(ledGreen, 1);
-        vTaskDelay(pdMS_TO_TICKS(500));
-
-        counter++;
-        if (counter == 15){
-            while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
-                continue;
-            ESP_LOGE(TAG, "SPI taken by app main");
-            readAllTables(&s3Tables);
-            xSemaphoreGive(spiTaskSem);
-            counter = 0;
-        }
-
-        //Check for config table changes:
-        /* uint16_t t;
-        read_nvs("C49", &t);
-        if (CFG_REMOTA_LOG_LEVEL != t){
-            write_nvs("C49", CFG_REMOTA_LOG_LEVEL);
-            switch (CFG_REMOTA_LOG_LEVEL){
-                case 0:
-                    esp_log_level_set(TAG, ESP_LOG_NONE);
-                    break;
-                case 1:
-                    esp_log_level_set(TAG, ESP_LOG_ERROR);
-                    break;
-                case 2:
-                    esp_log_level_set(TAG, ESP_LOG_WARN);
-                    break;
-                case 3:
-                    esp_log_level_set(TAG, ESP_LOG_INFO);
-                    break;
-                case 4:
-                    esp_log_level_set(TAG, ESP_LOG_DEBUG);
-                    break;
-                case 5:
-                    esp_log_level_set(TAG, ESP_LOG_VERBOSE);
-                    break;
-                default:
-                    CFG_REMOTA_LOG_LEVEL = (uint16_t)esp_log_level_get(TAG);
+        if (CFG_RUN_PGM){  //Run mode selected:
+            //Resume tasks if they're in suspended state:
+            if (eTaskGetState(xSPITaskHandle) == eSuspended){
+                while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
+                        continue;
+                vTaskResume(xSPITaskHandle);
+                xSemaphoreGive(spiTaskSem);
+                ESP_LOGW(TAG, "SPI task resumed...");
             }
-        } */
+            if (eTaskGetState(xScalingTaskHandle) == eSuspended){
+                vTaskResume(xScalingTaskHandle);
+                ESP_LOGW(TAG, "Scaling task resumed...");
+            }
+
+            switch (CFG_OP_MODE)    //Perform task according to operation mode selected
+            {
+            case 0:
+                /* Pozo de Flujo Natural */
+                ESP_LOGI(TAG, "Pozo de Flujo Natural");
+                break;
+            case 1:
+                /* Pozo de Gas Lift */
+                ESP_LOGI(TAG, "Pozo de Gas Lift");
+                break;
+            case 2:
+                /* Pozos de Bombeo Mecánico */
+                ESP_LOGI(TAG, "Pozos de Bombeo Mecánico");
+                break;
+            case 3:
+                /* Pozos de bomba electrosumergible */
+                ESP_LOGI(TAG, "Pozos de Bomba Electrosumergible");
+                break;
+            case 4:
+                /* Pozos con Bomba de Cavidad Progresiva */
+                ESP_LOGI(TAG, "Pozos con Bomba de Cavidad Progresiva");
+                break;
+            case 5:
+                /* Estaciones de Válvulas */
+                ESP_LOGI(TAG, "Estaciones de Válvulas");
+                break;
+            
+            default:
+                break;
+            }
+
+            //Any change in the Modbus registers should be protected by critical section:
+
+            /* portENTER_CRITICAL(&mb_spinlock);
+            for (int i=0; i<s3Tables.anSize; i++){
+                s3Tables.anTbl[1][i] +=5;
+            }
+            for (int i=0; i<s3Tables.digSize; i++){
+                s3Tables.digTbl[1][i] +=5;
+            }
+            portEXIT_CRITICAL(&mb_spinlock); */
+
+            print_spi_stats();
+            //esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
+            ESP_LOGD(TAG, "SPI exchange task time: %u us", SPI_EXCHANGE_TIME);
+            ESP_LOGD(TAG, "SPI cycle task time: %u us\n", SPI_CYCLE_TIME);
+            
+            ESP_LOGI(TAG, "Analog inputs table:");
+            tablePrint(s3Tables.anTbl[0],  s3Tables.anSize);
+            ESP_LOGI(TAG, "Scaled input values:");
+            tablePrintFloat(s3Tables.scaledValues, s3Tables.anSize);
+            ESP_LOGI(TAG, "Digital inputs table:");
+            tablePrint(s3Tables.digTbl[0], s3Tables.digSize);
+            ESP_LOGW(TAG, "Analog outputs table:");
+            tablePrint(s3Tables.anTbl[1],  s3Tables.anSize);
+            ESP_LOGW(TAG, "Digital outputs table:");
+            tablePrint(s3Tables.digTbl[1], s3Tables.digSize);
+
+            gpio_set_level(ledGreen, 0);
+            vTaskDelay(pdMS_TO_TICKS(500));       
+            gpio_set_level(ledGreen, 1);
+            vTaskDelay(pdMS_TO_TICKS(500));
+
+            counter++;
+            if (counter == 15){
+                while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
+                    continue;
+                ESP_LOGE(TAG, "SPI taken by app main");
+                readAllTables(&s3Tables);
+                xSemaphoreGive(spiTaskSem);
+                counter = 0;
+            }
+
+            
+        }
+        else{  //Program mode selected
+            // Suspend tasks if they're in run state:
+            if (eTaskGetState(xSPITaskHandle) != eSuspended){
+                while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
+                        continue;
+                vTaskSuspend(xSPITaskHandle);
+                xSemaphoreGive(spiTaskSem);
+                ESP_LOGW(TAG, "SPI task has been suspended");
+            }
+            if (eTaskGetState(xScalingTaskHandle) != eSuspended){
+                vTaskSuspend(xScalingTaskHandle);
+                ESP_LOGW(TAG, "Scaling task has been suspended");
+                ESP_LOGW(TAG, "Program mode is activated. Waiting for setup...");
+            }
+
+            //Perform configuration tasks here!
+            
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
     
     //Liberar memoria
@@ -1198,8 +1131,8 @@ void scaling_task(void *pvParameters){
 }
 
 void mb_event_check_task(void *pvParameters){
-    //static const char *TAG = "MB_EVENT_CHK";
     mb_param_info_t reg_info;
+    size_t size = sizeof(float);
 
     while(!modbus_slave_initialized)
         continue;
@@ -1209,61 +1142,114 @@ void mb_event_check_task(void *pvParameters){
         memset(&reg_info, 0, sizeof(mb_param_info_t));
         mb_event_group_t event = mbc_slave_check_event(MB_EVENT_HOLDING_REG_WR);
         
-        if (event & MB_EVENT_HOLDING_REG_WR){  
-            //mbc_slave_get_param_info(&reg_info, 10 / portTICK_PERIOD_MS);
+        //if (event & MB_EVENT_HOLDING_REG_WR){  
             for (int i = 0; i<=CONFIG_FMB_CONTROLLER_NOTIFY_QUEUE_SIZE; i++)
             {
                 mbc_slave_get_param_info(&reg_info, 10 / portTICK_PERIOD_MS);
-                printf("HOLDING (%lu us), ADDR:%lu, TYPE:%lu, SIZE:%u\n",
+                ESP_LOGV(mbEventChkTAG, "HOLDING (%lu us), ADDR:%lu, TYPE:%lu, SIZE:%u",
                         (uint32_t)reg_info.time_stamp,
                         (uint32_t)reg_info.mb_offset,
                         (uint32_t)reg_info.type,
                         reg_info.size);
+
                 if(reg_info.type == MB_EVENT_HOLDING_REG_WR){
                     if((reg_info.mb_offset < 16)){
-                        printf("Register belongs to analog outputs table\n");
+                        ESP_LOGV(mbEventChkTAG, "Register belongs to analog outputs table");
                     }
+
                     else if((reg_info.mb_offset >= 16) && (reg_info.mb_offset < 66)){
-                        printf("Register belongs to config table\n");
+                        ESP_LOGV(mbEventChkTAG, "Register belongs to config table");
                         uint8_t index = reg_info.mb_offset - 16;
                         char key[5] = {'\0'};
                         sprintf(key, "C%u", index);
-                        write_nvs(key, s3Tables.configTbl[0][index]);
+
+                        switch (index) //Configurations applied in run or in program modes
+                        {
+                        case 0:
+                            if (CFG_RUN_PGM > 1)
+                                read_nvs(key, &CFG_RUN_PGM);  // Don't accept invalid values
+                            break;
+
+                        case 49:   
+                            if (CFG_REMOTA_LOG_LEVEL > 5)
+                                read_nvs(key, &CFG_REMOTA_LOG_LEVEL);  // Don't accept invalid values
+                            else {
+                                esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
+                                esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
+                                esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
+                            }
+                            break;
+                        
+                        default:
+                            break;
+                        }
+                        
+                        if (CFG_RUN_PGM){ //Run mode
+                            if ((index == 0) || (index >=45))  // In run mode only these registers are allowed for changing
+                                write_nvs(key, s3Tables.configTbl[0][index]);
+                            else
+                                read_nvs(key, &s3Tables.configTbl[0][index]); // Restore previous value in run mode
+                        }
+                        else{             //Program mode
+                            //In program mode all config registers are allowed for changing
+                            switch (index)      // Configurations applied in program mode
+                            {
+                            case 1: //CFG_OP_MODE
+                                if (CFG_OP_MODE > 5)    //Don't accept invalid values
+                                    read_nvs(key, &CFG_OP_MODE);
+                                else
+                                    write_nvs(key, s3Tables.configTbl[0][index]);
+                                break;
+
+                            case 12: //CFG_DHCP
+                                set_DHCP();
+                                write_nvs(key, s3Tables.configTbl[0][index]);
+                                break;
+                            
+                            default:
+                                write_nvs(key, s3Tables.configTbl[0][index]);
+                                break;
+                            }
+                        }
                     }
+
                     else if((reg_info.mb_offset >= 66) && (reg_info.mb_offset < 116)){
-                        printf("Register belongs to aux table\n");
+                        ESP_LOGV(mbEventChkTAG, "Register belongs to aux table");
                         uint8_t index = reg_info.mb_offset - 66;
                         char key[5] = {'\0'};
                         sprintf(key, "A%u", index);
                         write_nvs(key, s3Tables.auxTbl[0][index]);
                     }
+
                     else if((reg_info.mb_offset >= 116) && (reg_info.mb_offset < 148)){
-                        printf("Register belongs to scaling factors table\n");
+                        ESP_LOGV(mbEventChkTAG, "Register belongs to scaling factors table");
                         uint8_t index = (reg_info.mb_offset - 116) >> 1;
                         char key[6] = {'\0'};
                         sprintf(key, "SF%u", index);
-                        nvs_set_blob(app_nvs_handle, key, &s3Tables.scalingFactor[index], 4);
+                        if (CFG_RUN_PGM){ //Run mode
+                            nvs_get_blob(app_nvs_handle, key, &s3Tables.scalingFactor[index], &size); //Changing not allowed in run mode
+                        }
+                        else{             //Program mode
+                            nvs_set_blob(app_nvs_handle, key, &s3Tables.scalingFactor[index], size);
+                        }
+                        
                     }
+
                     else if((reg_info.mb_offset >= 148) && (reg_info.mb_offset < 180)){
-                        printf("Register belongs to scaling offsets table\n");
+                        ESP_LOGV(mbEventChkTAG, "Register belongs to scaling offsets table");
                         uint8_t index = (reg_info.mb_offset - 148) >> 1;
                         char key[6] = {'\0'};
                         sprintf(key, "SO%u", index);
-                        nvs_set_blob(app_nvs_handle, key, &s3Tables.scalingOffset[index], 4);
+                        if (CFG_RUN_PGM){ //Run mode
+                            nvs_get_blob(app_nvs_handle, key, &s3Tables.scalingOffset[index], &size); //Changing not allowed in run mode
+                        }
+                        else{             //Program mode
+                            nvs_set_blob(app_nvs_handle, key, &s3Tables.scalingOffset[index], size);
+                        }
                     }
                 }
-            }
-            
-            
-            /* printf("HOLDING (%lu us), ADDR:%lu, TYPE:%lu, INST_ADDR:0x%.4lx, VALUE: %u, SIZE:%u\n",
-                    (uint32_t)reg_info.time_stamp,
-                    (uint32_t)reg_info.mb_offset,
-                    (uint32_t)reg_info.type,
-                    (uint32_t)reg_info.address,
-                    (uint16_t)*reg_info.address,
-                    reg_info.size); */
-            
-        }
+            }         
+        //}
     }
     
     taskYIELD();
