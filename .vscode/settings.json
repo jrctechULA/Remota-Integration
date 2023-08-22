@@ -24,6 +24,7 @@
         "initializer_list": "c",
         "regex": "c",
         "utility": "c",
-        "esp_task_wdt.h": "c"
+        "esp_task_wdt.h": "c",
+        "mbcontroller.h": "c"
     }
 }

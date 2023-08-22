@@ -1,11 +1,17 @@
 #ifndef REMOTA_GLOBALS_H
 #define REMOTA_GLOBALS_H
 
+//____________________________________________________________________________________________________
+// Include section:
+//____________________________________________________________________________________________________
+
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "mbcontroller.h"
 
-//remota globals block 1 start
+//____________________________________________________________________________________________________
+// Macro definitions:
+//____________________________________________________________________________________________________
 
 #define ledYellow 37
 #define ledGreen 36
@@ -43,9 +49,10 @@
 #define MB_REG_HOLDING_START_AREA4 (MB_REG_HOLDING_START_AREA3 + 32) //148
 #define MB_REG_INPUT_START_AREA1 (MB_REG_INPUT_START_AREA0 + 16) //16
 
-//remota globals block 1 end
+//____________________________________________________________________________________________________
+// Global declarations:
+//____________________________________________________________________________________________________
 
-//remota globals block 2 start
 static const char *TAG = "Remota-Main";
 static const char *mbSlaveTAG = "Modbus Slave";
 static const char *mbEventChkTAG = "Modbus Event Check";
@@ -97,9 +104,10 @@ nvs_handle_t app_nvs_handle;
 
 uint8_t modbus_slave_initialized = 0;
 
-//remota globals block 2 end
+//____________________________________________________________________________________________________
+// Function prototypes:
+//____________________________________________________________________________________________________
 
-//remota globals block 3 start
 esp_err_t tablesInit(varTables_t *tables, 
                      uint8_t numAnTbls,     //Tablas de variables analógicas
                      uint8_t numDigTbls,    //Tablas de variables digitales
