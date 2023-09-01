@@ -30,19 +30,8 @@
 #include "esp_timer.h"
 
 #include "remota_globals.h"
+#include "remota_var_defs.h"
 #include "comm_services.c"
-
-//____________________________________________________________________________________________________
-// Macro definitions:
-//____________________________________________________________________________________________________
-
-//____________________________________________________________________________________________________
-// Global declarations:
-//____________________________________________________________________________________________________
-
-//____________________________________________________________________________________________________
-// Function prototypes:
-//____________________________________________________________________________________________________
 
 //____________________________________________________________________________________________________
 // ISR Functions:
@@ -215,31 +204,273 @@ void app_main(void)
                 ESP_LOGW(TAG, "Scaling task resumed...");
             }
 
+            print_spi_stats();
+            ESP_LOGD(TAG, "SPI exchange task time: %u us", SPI_EXCHANGE_TIME);
+            ESP_LOGD(TAG, "SPI cycle task time: %u us\n", SPI_CYCLE_TIME);
+
             switch (CFG_OP_MODE)    //Perform task according to operation mode selected
             {
             case 0:
                 /* Pozo de Flujo Natural */
                 ESP_LOGI(TAG, "Pozo de Flujo Natural");
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t%u", NF_AI_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t%u", NF_AI_TTL);
+                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t%u", NF_AI_PTC);
+                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t%u", NF_AI_PTA);
+                ESP_LOGI(TAG, "Temperatura del casing o anular\t\t(TTA): \t%u", NF_AI_TTA);
+                ESP_LOGI(TAG, "Flujo de producción\t\t\t(FT): \t%u\n", NF_AI_FT);
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t%.3f", NF_SV_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t%.3f", NF_SV_TTL);
+                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t%.3f", NF_SV_PTC);
+                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t%.3f", NF_SV_PTA);
+                ESP_LOGI(TAG, "Temperatura del casing o anular\t\t(TTA): \t%.3f", NF_SV_TTA);
+                ESP_LOGI(TAG, "Flujo de producción\t\t\t(FT): \t%.3f\n", NF_SV_FT);
+
+                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", NF_DI_YA1);
+                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", NF_DI_YA2);
+                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", NF_DI_GZA);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", NF_DI_EAAC);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", NF_DI_EADC);
+
+                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Apertura/cierre de pozo\t\t\t(XV): \t\t%u\n", NF_DO_XV);
+
                 break;
             case 1:
                 /* Pozo de Gas Lift */
                 ESP_LOGI(TAG, "Pozo de Gas Lift");
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%u", GL_AI_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%u", GL_AI_TTL);
+                ESP_LOGI(TAG, "Posición válvula control flujo al pozo\t(ZT): \t\t%u", GL_AI_ZT);
+                ESP_LOGI(TAG, "Presión de gas al pozo\t\t\t(PTGL): \t%u", GL_AI_PTGL);
+                ESP_LOGI(TAG, "Temperatura de gas al pozo\t\t(TTGL): \t%u", GL_AI_TTGL);
+                ESP_LOGI(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%u\n", GL_AI_FTGL);
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%.3f", GL_SV_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%.3f", GL_SV_TTL);
+                ESP_LOGI(TAG, "Posición válvula control flujo al pozo\t(ZT): \t\t%.3f", GL_SV_ZT);
+                ESP_LOGI(TAG, "Presión de gas al pozo\t\t\t(PTGL): \t%.3f", GL_SV_PTGL);
+                ESP_LOGI(TAG, "Temperatura de gas al pozo\t\t(TTGL): \t%.3f", GL_SV_TTGL);
+                ESP_LOGI(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%.3f\n", GL_SV_FTGL);
+
+                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", GL_DI_YA1);
+                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", GL_DI_YA2);
+                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", GL_DI_GZA);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", GL_DI_EAAC);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", GL_DI_EADC);
+
+                ESP_LOGI(TAG, "Variables analógicas de salida escritas al módulo de E/S:");
+                ESP_LOGI(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%u\n", GL_AO_FCV);
+
+                ESP_LOGI(TAG, "Volumen diario de gas inyectado:");
+                ESP_LOGI(TAG, "Volumen total diario de gas\t\t(FQ): \t\t%u\n", GL_FQ);
                 break;
             case 2:
                 /* Pozos de Bombeo Mecánico */
                 ESP_LOGI(TAG, "Pozos de Bombeo Mecánico");
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t%u", MP_AI_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t%u", MP_AI_TTL);
+                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t%u", MP_AI_PTA);
+                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t%u", MP_AI_PTC);
+                ESP_LOGI(TAG, "Golpe por minuto (spm)\t\t\t(SPM): \t%u", MP_AI_SPM);
+                ESP_LOGI(TAG, "Ángulo de la viga\t\t\t(ZT): \t%u", MP_AI_ZT);
+                ESP_LOGI(TAG, "Carga de la sarta\t\t\t(WT): \t%u\n", MP_AI_WT);
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t%.3f", MP_SV_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t%.3f", MP_SV_TTL);
+                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t%.3f", MP_SV_PTA);
+                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t%.3f", MP_SV_PTC);
+                ESP_LOGI(TAG, "Golpe por minuto (spm)\t\t\t(SPM): \t%.3f", MP_SV_SPM);
+                ESP_LOGI(TAG, "Ángulo de la viga\t\t\t(ZT): \t%.3f", MP_SV_ZT);
+                ESP_LOGI(TAG, "Carga de la sarta\t\t\t(WT): \t%.3f\n", MP_SV_WT);
+
+                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", MP_DI_YA1);
+                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", MP_DI_YA2);
+                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", MP_DI_GZA);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", MP_DI_EAAC);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", MP_DI_EADC);
+
+                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Encendido/apagado de bombeo\t\t(HS1): \t\t%u\n", MP_DO_HS1);
+
+                ESP_LOGI(TAG, "Variables modbus (input registers) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Voltaje de motor\t\t(ETM): \t%.3f", MP_IR_ETM);
+                ESP_LOGI(TAG, "Corriente de motor\t(ITM): \t%.3f", MP_IR_ITM);
+                ESP_LOGI(TAG, "Potencia de motor\t(JTM): \t%.3f\n", MP_IR_JTM);
+
+                ESP_LOGI(TAG, "Variables modbus (holding registers) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Ajuste de velocidad\t(SCM): \t%.3f\n", MP_HR_SCM);
+
+                ESP_LOGI(TAG, "Variables modbus (COILS) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Encendido/apagado de bombeo\t(HS1): \t%u\n", MP_COIL_HS1);
+
                 break;
             case 3:
                 /* Pozos de bomba electrosumergible */
                 ESP_LOGI(TAG, "Pozos de Bomba Electrosumergible");
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%u", ES_AI_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%u", ES_AI_TTL);
+                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t\t%u", ES_AI_PTA);
+                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t\t%u", ES_AI_PTC);
+                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%u", ES_AI_PTSB);
+                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%u", ES_AI_PTDB);
+                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%u", ES_AI_TTSB);
+                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%u", ES_AI_TTDB);
+                ESP_LOGI(TAG, "Vibración de bomba\t\t\t(VT): \t\t%u\n", ES_AI_VT);
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%.3f", ES_SV_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%.3f", ES_SV_TTL);
+                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t\t%.3f", ES_SV_PTA);
+                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t\t%.3f", ES_SV_PTC);
+                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%.3f", ES_SV_PTSB);
+                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%.3f", ES_SV_PTDB);
+                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%.3f", ES_SV_TTSB);
+                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%.3f", ES_SV_TTDB);
+                ESP_LOGI(TAG, "Vibración de bomba\t\t\t(VT): \t\t%.3f\n", ES_SV_VT);
+
+                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", ES_DI_YA1);
+                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", ES_DI_YA2);
+                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", ES_DI_GZA);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", ES_DI_EAAC);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", ES_DI_EADC);
+
+                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Encendido/apagado de bombeo\t\t(HS1): \t\t%u\n", ES_DO_HS1);
+
+                ESP_LOGI(TAG, "Variables modbus (input registers) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Voltaje de motor\t\t\t\t\t(ETM): \t\t%.3f", ES_IR_ETM);
+                ESP_LOGI(TAG, "Corriente de motor\t\t\t\t(ITM): \t\t%.3f", ES_IR_ITM);
+                ESP_LOGI(TAG, "Frecuencia de salida\t\t\t\t(ST1): \t\t%.3f", ES_IR_ST1);
+                ESP_LOGI(TAG, "Temperatura de arrollado de motor\t\t(TTM): \t\t%.3f", ES_IR_TTM);
+                ESP_LOGI(TAG, "Torque de motor\t\t\t\t\t(WTM): \t\t%.3f", ES_IR_WTM);
+                ESP_LOGI(TAG, "Torque de bomba\t\t\t\t\t(WTB): \t\t%.3f", ES_IR_WTB);
+                ESP_LOGI(TAG, "Velocidad de la bomba\t\t\t\t(ST2): \t\t%.3f", ES_IR_ST2);
+                ESP_LOGI(TAG, "Relación de poleas en caja de velocidad (VFD)\t(SFM): \t\t%.3f", ES_IR_SFM);
+                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t\t(PTSB): \t%.3f", ES_IR_PTSB);
+                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t\t(PTDB): \t%.3f", ES_IR_PTDB);
+                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t\t(TTSB): \t%.3f", ES_IR_TTSB);
+                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t\t(TTDB): \t%.3f", ES_IR_TTDB);
+                ESP_LOGI(TAG, "Vibración de bomba\t\t\t\t(VT): \t\t%.3f\n", ES_IR_VT);
+
+                ESP_LOGI(TAG, "Variables de estatus del variador\t\t(YI1): \t\t%u", ES_IR_YI1);
+                ESP_LOGI(TAG, "Fallas actuales del VFD\t\t\t\t(YI2): \t\t%u\n", ES_IR_YI2);
+
+                ESP_LOGI(TAG, "Variables modbus (holding registers) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Velocidad de la bomba\t\t(SCM): \t%.3f\n", ES_HR_SCM);
+
+                ESP_LOGI(TAG, "Variables modbus (DISCRETES) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Encendido/apagado\t\t(YI): \t%u\n", ES_DISCRETE_YI);
+
+                ESP_LOGI(TAG, "Variables modbus (COILS) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Encendido/apagado\t\t(HS1): \t%u", ES_COIL_HS1);
+                ESP_LOGI(TAG, "Reposición de causa de paro\t(HS2): \t%u\n", ES_COIL_HS2);
                 break;
             case 4:
                 /* Pozos con Bomba de Cavidad Progresiva */
                 ESP_LOGI(TAG, "Pozos con Bomba de Cavidad Progresiva");
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%u", PC_AI_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%u", PC_AI_TTL);
+                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%u", PC_AI_PTSB);
+                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%u", PC_AI_PTDB);
+                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%u", PC_AI_TTSB);
+                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%u", PC_AI_TTDB);
+                ESP_LOGI(TAG, "Vibración de bomba\t\t\t(VT): \t\t%u\n", PC_AI_VT);
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%.3f", PC_SV_PTL);
+                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%.3f", PC_SV_TTL);
+                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%.3f", PC_SV_PTSB);
+                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%.3f", PC_SV_PTDB);
+                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%.3f", PC_SV_TTSB);
+                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%.3f", PC_SV_TTDB);
+                ESP_LOGI(TAG, "Vibración de bomba\t\t\t(VT): \t\t%.3f\n", PC_SV_VT);
+
+                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", PC_DI_YA1);
+                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", PC_DI_YA2);
+                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", PC_DI_GZA);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", PC_DI_EAAC);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", PC_DI_EADC);
+
+                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Encendido/apagado de bombeo\t\t(HS1): \t\t%u\n", PC_DO_HS1);
+
+                ESP_LOGI(TAG, "Variables modbus (input registers) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Torque de motor\t\t\t\t\t(WTM): \t\t%.3f", PC_IR_WTM);
+                ESP_LOGI(TAG, "Torque de bomba\t\t\t\t\t(WTB): \t\t%.3f", PC_IR_WTB);
+                ESP_LOGI(TAG, "Velocidad de la bomba\t\t\t\t(ST2): \t\t%.3f", PC_IR_ST2);
+                ESP_LOGI(TAG, "Relación de poleas en caja de velocidad (VFD)\t(SFM): \t\t%.3f", PC_IR_SFM);
+                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t\t(PTSB): \t%.3f", PC_IR_PTSB);
+                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t\t(PTDB): \t%.3f", PC_IR_PTDB);
+                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t\t(TTSB): \t%.3f", PC_IR_TTSB);
+                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t\t(TTDB): \t%.3f", PC_IR_TTDB);
+                ESP_LOGI(TAG, "Vibración de bomba\t\t\t\t(VT): \t\t%.3f\n", PC_IR_VT);
+
+                ESP_LOGI(TAG, "Variables de estatus del variador\t\t(YI1): \t\t%u", PC_IR_YI1);
+                ESP_LOGI(TAG, "Fallas actuales del VFD\t\t\t\t(YI2): \t\t%u\n", PC_IR_YI2);
+
+                ESP_LOGI(TAG, "Variables modbus (holding registers) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Velocidad de la bomba\t\t(SCM): \t%.3f\n", PC_HR_SCM);
+
+                ESP_LOGI(TAG, "Variables modbus (DISCRETES) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Encendido/apagado\t\t(YI): \t%u\n", PC_DISCRETE_YI);
+
+                ESP_LOGI(TAG, "Variables modbus (COILS) leidas desde el esquipo esclavo:");
+                ESP_LOGI(TAG, "Encendido/apagado\t\t(HS1): \t%u\n", PC_COIL_HS1);
+
                 break;
             case 5:
                 /* Estaciones de Válvulas */
-                ESP_LOGI(TAG, "Estaciones de Válvulas");
+                ESP_LOGI(TAG, "Estaciones de Válvulas\n");
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Transmisor de presión\t\t\t(PT): \t%u", VS_AI_PT);
+                ESP_LOGI(TAG, "Transmisor de temperatura\t\t(TT): \t%u", VS_AI_TT);
+                ESP_LOGI(TAG, "Transmisor de interface\t\t\t(AT): \t%u\n", VS_AI_AT);
+
+                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGI(TAG, "Transmisor de presión\t\t\t(PT): \t%.3f", VS_SV_PT);
+                ESP_LOGI(TAG, "Transmisor de temperatura\t\t(TT): \t%.3f", VS_SV_TT);
+                ESP_LOGI(TAG, "Transmisor de interface\t\t\t(AT): \t%.3f\n", VS_SV_AT);
+
+                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", VS_DI_YA1);
+                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", VS_DI_YA2);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", VS_DI_EAAC);
+                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", VS_DI_EADC);
+
+                ESP_LOGI(TAG, "Detector de herramienta de limpieza\t(XI): \t\t%u", VS_DI_XI);
+                ESP_LOGI(TAG, "Bajo nivel de nitrógeno\t\t\t(LNL): \t\t%u", VS_DI_LNL);
+                ESP_LOGI(TAG, "Válvula completamente abierta\t\t(OV): \t\t%u", VS_DI_OV);
+                ESP_LOGI(TAG, "Válvula completamente cerrada\t\t(CV): \t\t%u\n", VS_DI_CV);
+
+                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGI(TAG, "Cierre rápido de la válvula\t\t(XV): \t\t%u\n", VS_DO_XV);
+
                 break;
             
             default:
@@ -257,12 +488,9 @@ void app_main(void)
             }
             portEXIT_CRITICAL(&mb_spinlock); */
 
-            print_spi_stats();
-            //esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
-            ESP_LOGD(TAG, "SPI exchange task time: %u us", SPI_EXCHANGE_TIME);
-            ESP_LOGD(TAG, "SPI cycle task time: %u us\n", SPI_CYCLE_TIME);
             
-            ESP_LOGI(TAG, "Analog inputs table:");
+            
+            /* ESP_LOGI(TAG, "Analog inputs table:");
             tablePrint(s3Tables.anTbl[0],  s3Tables.anSize);
             ESP_LOGI(TAG, "Scaled input values:");
             tablePrintFloat(s3Tables.scaledValues, s3Tables.anSize);
@@ -271,14 +499,14 @@ void app_main(void)
             ESP_LOGW(TAG, "Analog outputs table:");
             tablePrint(s3Tables.anTbl[1],  s3Tables.anSize);
             ESP_LOGW(TAG, "Digital outputs table:");
-            tablePrint(s3Tables.digTbl[1], s3Tables.digSize);
+            tablePrint(s3Tables.digTbl[1], s3Tables.digSize); */
 
             gpio_set_level(ledGreen, 0);
             vTaskDelay(pdMS_TO_TICKS(500));       
             gpio_set_level(ledGreen, 1);
             vTaskDelay(pdMS_TO_TICKS(500));
 
-            counter++;
+            /* counter++;
             if (counter == 15){
                 while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
                     continue;
@@ -286,7 +514,7 @@ void app_main(void)
                 readAllTables(&s3Tables);
                 xSemaphoreGive(spiTaskSem);
                 counter = 0;
-            }
+            } */
 
             
         }
@@ -1005,6 +1233,11 @@ void spi_task(void *pvParameters)
 }
 
 esp_err_t modbus_slave_init(void){
+    /* if (modbus_slave_initialized)
+    {
+        mbc_slave_destroy();
+        modbus_slave_initialized = 0;
+    } */
 
     // Stage 1. Modbus Port Initialization:
 
@@ -1018,69 +1251,7 @@ esp_err_t modbus_slave_init(void){
 
     //Stage 2. Configuring Slave Data Access:
 
-    //Analog Inputs Table:
-    reg_area.type = MB_PARAM_INPUT;                               // Set type of register area
-    reg_area.start_offset = MB_REG_INPUT_START_AREA0;  //0        // Offset of register area in Modbus protocol
-    reg_area.address = (void*)&s3Tables.anTbl[0][0];              // Set pointer to storage instance
-    reg_area.size = (s3Tables.anSize) << 1;                       // Set the size of register storage area in bytes
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
-
-    //Digital Inputs Table:
-    reg_area.type = MB_PARAM_DISCRETE;
-    reg_area.start_offset = MB_REG_DISCRETE_START_AREA0; //0
-    reg_area.address = (void*)&s3Tables.digTbl[0][0];
-    reg_area.size = 4;
-    err = mbc_slave_set_descriptor(reg_area);
-
-
-    //Analog Outputs Table:
-    reg_area.type = MB_PARAM_HOLDING;
-    reg_area.start_offset = MB_REG_HOLDING_START_AREA0; //0
-    reg_area.address = (void*)&s3Tables.anTbl[1][0];
-    reg_area.size = (s3Tables.anSize) << 1;
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
-
-    //Digital Outputs Table:
-    reg_area.type = MB_PARAM_COIL;
-    reg_area.start_offset = MB_REG_COIL_START_AREA0;  //0
-    reg_area.address = (void*)&s3Tables.digTbl[1][0];
-    reg_area.size = 4;
-    err = mbc_slave_set_descriptor(reg_area);
-
-    //Config Table:
-    reg_area.type = MB_PARAM_HOLDING;
-    reg_area.start_offset = MB_REG_HOLDING_START_AREA1;   //16
-    reg_area.address = (void*)&s3Tables.configTbl[0][0];
-    reg_area.size = (s3Tables.configSize) << 1;
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
-
-    //Aux Table:
-    reg_area.type = MB_PARAM_HOLDING;
-    reg_area.start_offset = MB_REG_HOLDING_START_AREA2;  //66
-    reg_area.address = (void*)&s3Tables.auxTbl[0][0];
-    reg_area.size = (s3Tables.auxSize) << 1;
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
-
-    //Scaling Factors Table: (Slopes: m)
-    reg_area.type = MB_PARAM_HOLDING;
-    reg_area.start_offset = MB_REG_HOLDING_START_AREA3;  //116
-    reg_area.address = (void*)&s3Tables.scalingFactor[0];
-    reg_area.size = (s3Tables.anSize) * 4;
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
-
-    //Scaling Offsets Table: (y cuts: b)
-    reg_area.type = MB_PARAM_HOLDING;
-    reg_area.start_offset = MB_REG_HOLDING_START_AREA4;  //148
-    reg_area.address = (void*)&s3Tables.scalingOffset[0];
-    reg_area.size = (s3Tables.anSize) * 4;
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
-
-    //Scaling Values Table: (Analog inputs after scaling is applied)
-    reg_area.type = MB_PARAM_INPUT;
-    reg_area.start_offset = MB_REG_INPUT_START_AREA1;  //16
-    reg_area.address = (void*)&s3Tables.scaledValues[0];
-    reg_area.size = (s3Tables.anSize) * 4;
-    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+    ESP_ERROR_CHECK(create_modbus_map());
 
     //Stage 3. Slave Communication Options:
 
@@ -1101,6 +1272,476 @@ esp_err_t modbus_slave_init(void){
 
     modbus_slave_initialized = 1;
 
+    return ESP_OK;
+}
+
+esp_err_t create_modbus_map(void){
+    //____________________________________________________________________________________________________
+    //Basic Modbus map:
+    //____________________________________________________________________________________________________
+    //Config Table:
+    reg_area.type = MB_PARAM_HOLDING;                               // Set type of register area
+    reg_area.start_offset = MB_REG_HOLDING_START_AREA1;   //16      // Offset of register area in Modbus protocol
+    reg_area.address = (void*)&s3Tables.configTbl[0][0];            // Set pointer to storage instance
+    reg_area.size = (s3Tables.configSize) << 1;                     // Set the size of register storage area in bytes
+    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+    //Aux Table:
+    reg_area.type = MB_PARAM_HOLDING;
+    reg_area.start_offset = MB_REG_HOLDING_START_AREA2;  //66
+    reg_area.address = (void*)&s3Tables.auxTbl[0][0];
+    reg_area.size = (s3Tables.auxSize) << 1;
+    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+    //Digital Inputs Table:
+    reg_area.type = MB_PARAM_DISCRETE;
+    reg_area.start_offset = MB_REG_DISCRETE_START_AREA0; //0
+    reg_area.address = (void*)&s3Tables.digTbl[0][0];
+    reg_area.size = 1;
+    ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+    //____________________________________________________________________________________________________
+    // Extended Modbus map: (Depending of CFG_OP_MODE)
+    //____________________________________________________________________________________________________
+    switch (CFG_OP_MODE)
+    {
+    case 0:      /* Pozo de Flujo Natural */
+        //Analog Inputs Table:
+        reg_area.type = MB_PARAM_INPUT;                               // Set type of register area
+        reg_area.start_offset = MB_REG_INPUT_START_AREA0;  //0        // Offset of register area in Modbus protocol
+        reg_area.address = (void*)&s3Tables.anTbl[0][0];              // Set pointer to storage instance
+        reg_area.size = 6 << 1;                                       // Set the size of register storage area in bytes
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Digital Outputs Table:
+        reg_area.type = MB_PARAM_COIL;
+        reg_area.start_offset = MB_REG_COIL_START_AREA0;  //0
+        reg_area.address = (void*)&s3Tables.digTbl[1][0];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+        
+        //Scaling Factors Table: (Slopes: m)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA3;  //116
+        reg_area.address = (void*)&s3Tables.scalingFactor[0];
+        reg_area.size = 6 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Offsets Table: (y cuts: b)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA4;  //148
+        reg_area.address = (void*)&s3Tables.scalingOffset[0];
+        reg_area.size = 6 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Values Table: (Analog inputs after scaling is applied)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = MB_REG_INPUT_START_AREA1;  //16
+        reg_area.address = (void*)&s3Tables.scaledValues[0];
+        reg_area.size = 6 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+        break;
+
+    case 1:     /* Pozo de Gas Lift */
+        //Analog Inputs Table:
+        reg_area.type = MB_PARAM_INPUT;                               // Set type of register area
+        reg_area.start_offset = MB_REG_INPUT_START_AREA0;  //0        // Offset of register area in Modbus protocol
+        reg_area.address = (void*)&s3Tables.anTbl[0][0];              // Set pointer to storage instance
+        reg_area.size = 6 << 1;                                       // Set the size of register storage area in bytes
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Analog Outputs Table:
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA0; //0
+        reg_area.address = (void*)&s3Tables.anTbl[1][0];
+        reg_area.size = 1 << 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Factors Table: (Slopes: m)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA3;  //116
+        reg_area.address = (void*)&s3Tables.scalingFactor[0];
+        reg_area.size = 6 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Offsets Table: (y cuts: b)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA4;  //148
+        reg_area.address = (void*)&s3Tables.scalingOffset[0];
+        reg_area.size = 6 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Values Table: (Analog inputs after scaling is applied)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = MB_REG_INPUT_START_AREA1;  //16
+        reg_area.address = (void*)&s3Tables.scaledValues[0];
+        reg_area.size = 6 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Nota: El volumen total diario de gas se calculará en la tabla auxiliar.
+        break;
+
+        
+    case 2:     /* Pozos de Bombeo Mecánico */
+        //Analog Inputs Table:
+        reg_area.type = MB_PARAM_INPUT;                               // Set type of register area
+        reg_area.start_offset = MB_REG_INPUT_START_AREA0;  //0        // Offset of register area in Modbus protocol
+        reg_area.address = (void*)&s3Tables.anTbl[0][0];              // Set pointer to storage instance
+        reg_area.size = 7 << 1;                                       // Set the size of register storage area in bytes
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Digital Outputs Table:
+        reg_area.type = MB_PARAM_COIL;
+        reg_area.start_offset = MB_REG_COIL_START_AREA0;  //0
+        reg_area.address = (void*)&s3Tables.digTbl[1][0];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Factors Table: (Slopes: m)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA3;  //116
+        reg_area.address = (void*)&s3Tables.scalingFactor[0];
+        reg_area.size = 7 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Offsets Table: (y cuts: b)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA4;  //148
+        reg_area.address = (void*)&s3Tables.scalingOffset[0];
+        reg_area.size = 7 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Values Table: (Analog inputs after scaling is applied)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = MB_REG_INPUT_START_AREA1;  //16
+        reg_area.address = (void*)&s3Tables.scaledValues[0];
+        reg_area.size = 7 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+        
+        s3Tables.mbTblFloat =(float **)malloc(1 * sizeof(float*));
+        if (s3Tables.mbTblFloat == NULL){
+            ESP_LOGE(TAG, "Error al asignar memoria!\n");
+		    return ESP_FAIL;
+        }
+        s3Tables.mbTblFloat[0] = (float*)malloc(4 * sizeof(float));
+		if (s3Tables.mbTblFloat[0] == NULL){
+			ESP_LOGE(TAG, "Error al asignar memoria!\n");
+			return ESP_FAIL;
+		}
+        for (int i = 0; i < 4; i++)
+            s3Tables.mbTblFloat[0][i] = 0;
+
+        // Modbus input registers (for the slave device)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = 30;
+        reg_area.address = (void*)&s3Tables.mbTblFloat[0][0];
+        reg_area.size = 3 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        // Modbus holding registers (for the slave device)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = 162;
+        reg_area.address = (void*)&s3Tables.mbTblFloat[0][3];
+        reg_area.size = 1 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        s3Tables.mbTbl8bit =(uint8_t **)malloc(1 * sizeof(uint8_t*));
+        if (s3Tables.mbTbl8bit == NULL){
+            ESP_LOGE(TAG, "Error al asignar memoria!\n");
+		    return ESP_FAIL;
+        }
+        s3Tables.mbTbl8bit[0] = (uint8_t*)malloc(1 * sizeof(uint8_t));
+		if (s3Tables.mbTbl8bit[0] == NULL){
+			ESP_LOGE(TAG, "Error al asignar memoria!\n");
+			return ESP_FAIL;
+		}
+        s3Tables.mbTbl8bit[0][0] = 0;
+
+        // Modbus coil registers (for the slave device)
+        reg_area.type = MB_PARAM_COIL;
+        reg_area.start_offset = 8;
+        reg_area.address = (void*)&s3Tables.mbTbl8bit[0][0];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        break;
+
+    case 3:     /* Pozos de bomba electrosumergible */
+        //Analog Inputs Table:
+        reg_area.type = MB_PARAM_INPUT;                               // Set type of register area
+        reg_area.start_offset = MB_REG_INPUT_START_AREA0;  //0        // Offset of register area in Modbus protocol
+        reg_area.address = (void*)&s3Tables.anTbl[0][0];              // Set pointer to storage instance
+        reg_area.size = 9 << 1;                                       // Set the size of register storage area in bytes
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Digital Outputs Table:
+        reg_area.type = MB_PARAM_COIL;
+        reg_area.start_offset = MB_REG_COIL_START_AREA0;  //0
+        reg_area.address = (void*)&s3Tables.digTbl[1][0];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Factors Table: (Slopes: m)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA3;  //116
+        reg_area.address = (void*)&s3Tables.scalingFactor[0];
+        reg_area.size = 9 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Offsets Table: (y cuts: b)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA4;  //148
+        reg_area.address = (void*)&s3Tables.scalingOffset[0];
+        reg_area.size = 9 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Values Table: (Analog inputs after scaling is applied)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = MB_REG_INPUT_START_AREA1;  //16
+        reg_area.address = (void*)&s3Tables.scaledValues[0];
+        reg_area.size = 9 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        s3Tables.mbTblFloat =(float **)malloc(1 * sizeof(float*));
+        if (s3Tables.mbTblFloat == NULL){
+            ESP_LOGE(TAG, "Error al asignar memoria!\n");
+		    return ESP_FAIL;
+        }
+        s3Tables.mbTblFloat[0] = (float*)malloc(14 * sizeof(float));
+		if (s3Tables.mbTblFloat[0] == NULL){
+			ESP_LOGE(TAG, "Error al asignar memoria!\n");
+			return ESP_FAIL;
+		}
+        for (int i = 0; i < 14; i++)
+            s3Tables.mbTblFloat[0][i] = 0;
+
+        // Modbus input registers (for the slave device)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = 34;
+        reg_area.address = (void*)&s3Tables.mbTblFloat[0][0];
+        reg_area.size = 13 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        // Modbus holding registers (for the slave device)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = 166;
+        reg_area.address = (void*)&s3Tables.mbTblFloat[0][13];
+        reg_area.size = 1 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        s3Tables.mbTbl16bit =(uint16_t **)malloc(1 * sizeof(uint16_t*));
+        if (s3Tables.mbTbl16bit == NULL){
+            ESP_LOGE(TAG, "Error al asignar memoria!\n");
+		    return ESP_FAIL;
+        }
+        s3Tables.mbTbl16bit[0] = (uint16_t*)malloc(2 * sizeof(uint16_t));
+		if (s3Tables.mbTbl16bit[0] == NULL){
+			ESP_LOGE(TAG, "Error al asignar memoria!\n");
+			return ESP_FAIL;
+		}
+        s3Tables.mbTbl16bit[0][0] = 0;
+        s3Tables.mbTbl16bit[0][1] = 0;
+        
+        
+        // Modbus input registers (for the slave device)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = 60;
+        reg_area.address = (void*)&s3Tables.mbTbl16bit[0][0];
+        reg_area.size = 2 << 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+        
+        s3Tables.mbTbl8bit =(uint8_t **)malloc(1 * sizeof(uint8_t*));
+        if (s3Tables.mbTbl8bit == NULL){
+            ESP_LOGE(TAG, "Error al asignar memoria!\n");
+		    return ESP_FAIL;
+        }
+        s3Tables.mbTbl8bit[0] = (uint8_t*)malloc(2 * sizeof(uint8_t));
+		if (s3Tables.mbTbl8bit[0] == NULL){
+			ESP_LOGE(TAG, "Error al asignar memoria!\n");
+			return ESP_FAIL;
+		}
+        s3Tables.mbTbl8bit[0][0] = 0;
+        s3Tables.mbTbl8bit[0][1] = 0;
+
+        //Modbus discrete inputs (for the slave device):
+        reg_area.type = MB_PARAM_DISCRETE;
+        reg_area.start_offset = 8;
+        reg_area.address = (void*)&s3Tables.mbTbl8bit[0][0];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Modbus coils (for the slave device):
+        reg_area.type = MB_PARAM_COIL;
+        reg_area.start_offset = 8;
+        reg_area.address = (void*)&s3Tables.mbTbl8bit[0][1];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+        
+        break;
+
+    case 4:     /* Pozos con Bomba de Cavidad Progresiva */
+        //Analog Inputs Table:
+        reg_area.type = MB_PARAM_INPUT;                               // Set type of register area
+        reg_area.start_offset = MB_REG_INPUT_START_AREA0;  //0        // Offset of register area in Modbus protocol
+        reg_area.address = (void*)&s3Tables.anTbl[0][0];              // Set pointer to storage instance
+        reg_area.size = 7 << 1;                                       // Set the size of register storage area in bytes
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Digital Outputs Table:
+        reg_area.type = MB_PARAM_COIL;
+        reg_area.start_offset = MB_REG_COIL_START_AREA0;  //0
+        reg_area.address = (void*)&s3Tables.digTbl[1][0];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Factors Table: (Slopes: m)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA3;  //116
+        reg_area.address = (void*)&s3Tables.scalingFactor[0];
+        reg_area.size = 7 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Offsets Table: (y cuts: b)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA4;  //148
+        reg_area.address = (void*)&s3Tables.scalingOffset[0];
+        reg_area.size = 7 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Values Table: (Analog inputs after scaling is applied)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = MB_REG_INPUT_START_AREA1;  //16
+        reg_area.address = (void*)&s3Tables.scaledValues[0];
+        reg_area.size = 7 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        s3Tables.mbTblFloat =(float **)malloc(1 * sizeof(float*));
+        if (s3Tables.mbTblFloat == NULL){
+            ESP_LOGE(TAG, "Error al asignar memoria!\n");
+		    return ESP_FAIL;
+        }
+        s3Tables.mbTblFloat[0] = (float*)malloc(10 * sizeof(float));
+		if (s3Tables.mbTblFloat[0] == NULL){
+			ESP_LOGE(TAG, "Error al asignar memoria!\n");
+			return ESP_FAIL;
+		}
+        for (int i = 0; i < 10; i++)
+            s3Tables.mbTblFloat[0][i] = 0;
+
+        // Modbus input registers (for the slave device)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = 30;
+        reg_area.address = (void*)&s3Tables.mbTblFloat[0][0];
+        reg_area.size = 9 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        // Modbus holding registers (for the slave device)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = 162;
+        reg_area.address = (void*)&s3Tables.mbTblFloat[0][9];
+        reg_area.size = 1 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+
+        s3Tables.mbTbl16bit =(uint16_t **)malloc(1 * sizeof(uint16_t*));
+        if (s3Tables.mbTbl16bit == NULL){
+            ESP_LOGE(TAG, "Error al asignar memoria!\n");
+		    return ESP_FAIL;
+        }
+        s3Tables.mbTbl16bit[0] = (uint16_t*)malloc(2 * sizeof(uint16_t));
+		if (s3Tables.mbTbl16bit[0] == NULL){
+			ESP_LOGE(TAG, "Error al asignar memoria!\n");
+			return ESP_FAIL;
+		}
+        
+        s3Tables.mbTbl16bit[0][0] = 0;
+        s3Tables.mbTbl16bit[0][1] = 0;
+
+        // Modbus input registers (for the slave device)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = 48;
+        reg_area.address = (void*)&s3Tables.mbTbl16bit[0][0];
+        reg_area.size = 2 << 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        s3Tables.mbTbl8bit =(uint8_t **)malloc(1 * sizeof(uint8_t*));
+        if (s3Tables.mbTbl8bit == NULL){
+            ESP_LOGE(TAG, "Error al asignar memoria!\n");
+		    return ESP_FAIL;
+        }
+        s3Tables.mbTbl8bit[0] = (uint8_t*)malloc(2 * sizeof(uint8_t));
+		if (s3Tables.mbTbl8bit[0] == NULL){
+			ESP_LOGE(TAG, "Error al asignar memoria!\n");
+			return ESP_FAIL;
+		}
+        s3Tables.mbTbl8bit[0][0] = 0;
+        s3Tables.mbTbl8bit[0][1] = 0;
+        
+        //Modbus discrete inputs (for the slave device):
+        reg_area.type = MB_PARAM_DISCRETE;
+        reg_area.start_offset = 8;
+        reg_area.address = (void*)&s3Tables.mbTbl8bit[0][0];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Modbus coils (for the slave device):
+        reg_area.type = MB_PARAM_COIL;
+        reg_area.start_offset = 8;
+        reg_area.address = (void*)&s3Tables.mbTbl8bit[0][1];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+        
+
+        break;
+    case 5:     /* Estaciones de Válvulas */
+        //Analog Inputs Table:
+        reg_area.type = MB_PARAM_INPUT;                               // Set type of register area
+        reg_area.start_offset = MB_REG_INPUT_START_AREA0;  //0        // Offset of register area in Modbus protocol
+        reg_area.address = (void*)&s3Tables.anTbl[0][0];              // Set pointer to storage instance
+        reg_area.size = 3 << 1;                                       // Set the size of register storage area in bytes
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Digital Outputs Table:
+        reg_area.type = MB_PARAM_COIL;
+        reg_area.start_offset = MB_REG_COIL_START_AREA0;  //0
+        reg_area.address = (void*)&s3Tables.digTbl[1][0];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Digital Inputs Table: (Aditional)
+        reg_area.type = MB_PARAM_DISCRETE;
+        reg_area.start_offset = 8;
+        reg_area.address = (void*)&s3Tables.digTbl[0][1];
+        reg_area.size = 1;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Factors Table: (Slopes: m)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = MB_REG_HOLDING_START_AREA3;  //116
+        reg_area.address = (void*)&s3Tables.scalingFactor[0];
+        reg_area.size = 3 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Offsets Table: (y cuts: b)
+        reg_area.type = MB_PARAM_HOLDING;
+        reg_area.start_offset = 122;
+        reg_area.address = (void*)&s3Tables.scalingOffset[0];
+        reg_area.size = 3 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+
+        //Scaling Values Table: (Analog inputs after scaling is applied)
+        reg_area.type = MB_PARAM_INPUT;
+        reg_area.start_offset = 3;
+        reg_area.address = (void*)&s3Tables.scaledValues[0];
+        reg_area.size = 3 * 4;
+        ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
+        break;
+
+
+    
+    default:
+        break;
+    }
     return ESP_OK;
 }
 
@@ -1154,54 +1795,98 @@ void mb_event_check_task(void *pvParameters){
                         char key[5] = {'\0'};
                         sprintf(key, "C%u", index);
 
-                        switch (index) //Configurations applied in run or in program modes
+                        uint8_t writeFlag = 1;      // Write data to nvs by default
+
+                        if (CFG_RUN_PGM && ((index > 0 ) && (index < 45)))  // Prohibited zone in Run mode
+                            writeFlag = 0;
+
+                        switch (index)
                         {
-                        case 0:
+                        case 0:     // Run - Program mode register
                             if (CFG_RUN_PGM > 1)
                                 read_nvs(key, &CFG_RUN_PGM);  // Don't accept invalid values
+                            
                             break;
-
-                        case 49:   
+                        case 1:     // OP mode register
+                            if (CFG_OP_MODE > 5)
+                                writeFlag = 0;  // Don't accept invalid values
+                            else 
+                                if (CFG_RUN_PGM)
+                                    writeFlag = 0;  // Don't change on run mode
+                                else
+                                    resetRequired = 1;  // Reset will be performed after saving
+                            break;
+                        case 2:
+                            
+                            break;
+                        case 3:
+                            
+                            break;
+                        case 4:
+                            
+                            break;
+                        case 5:
+                            
+                            break;
+                        case 6:
+                            
+                            break;
+                        case 7:
+                            
+                            break;
+                        case 8:
+                            
+                            break;
+                        case 9:
+                            
+                            break;
+                        case 10:
+                            
+                            break;
+                        case 11:
+                            
+                            break;
+                        case 12:        // CFG_DHCP (DHCP mode)
+                            if (CFG_DHCP > 1)
+                                writeFlag = 0;  // Don't accept invalid values
+                            else 
+                                if (CFG_RUN_PGM)
+                                    writeFlag = 0;  // Don't change on run mode
+                                else
+                                    set_DHCP();  // Configure DHCP (see function for details...)
+                            break;
+                        case 13:
+                            
+                            break;
+                        case 14:
+                            
+                            break;
+                        case 49:
                             if (CFG_REMOTA_LOG_LEVEL > 5)
-                                read_nvs(key, &CFG_REMOTA_LOG_LEVEL);  // Don't accept invalid values
-                            else {
+                                writeFlag = 0;
+                            else{
                                 esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
                                 esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
                                 esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
                             }
                             break;
                         
+                        
                         default:
                             break;
                         }
-                        
-                        if (CFG_RUN_PGM){ //Run mode
-                            if ((index == 0) || (index >=45))  // In run mode only these registers are allowed for changing
-                                write_nvs(key, s3Tables.configTbl[0][index]);
-                            else
-                                read_nvs(key, &s3Tables.configTbl[0][index]); // Restore previous value in run mode
-                        }
-                        else{             //Program mode
-                            //In program mode all config registers are allowed for changing
-                            switch (index)      // Configurations applied in program mode
-                            {
-                            case 1: //CFG_OP_MODE
-                                if (CFG_OP_MODE > 5)    //Don't accept invalid values
-                                    read_nvs(key, &CFG_OP_MODE);
-                                else
-                                    write_nvs(key, s3Tables.configTbl[0][index]);
-                                break;
 
-                            case 12: //CFG_DHCP
-                                set_DHCP();
-                                write_nvs(key, s3Tables.configTbl[0][index]);
-                                break;
-                            
-                            default:
-                                write_nvs(key, s3Tables.configTbl[0][index]);
-                                break;
-                            }
+                        if (writeFlag){
+                             write_nvs(key, s3Tables.configTbl[0][index]); // Write new value to flash
+                             if (resetRequired && (index == 0) && (CFG_RUN_PGM))    // Reset if OP mode was changed and run mode was selected
+                                esp_restart();
                         }
+                        else {
+                             read_nvs(key, &s3Tables.configTbl[0][index]); // Restore previous value
+                             writeFlag = 1;     // Restore flag
+                        }
+                        
+                        
                     }
 
                     else if((reg_info.mb_offset >= 66) && (reg_info.mb_offset < 116)){

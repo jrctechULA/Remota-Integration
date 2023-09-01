@@ -49,6 +49,7 @@
 #define MB_REG_HOLDING_START_AREA4 (MB_REG_HOLDING_START_AREA3 + 32) //148
 #define MB_REG_INPUT_START_AREA1 (MB_REG_INPUT_START_AREA0 + 16) //16
 
+//_______________________________________________________________________________________________________________
 //____________________________________________________________________________________________________
 // Global declarations:
 //____________________________________________________________________________________________________
@@ -66,7 +67,10 @@ typedef struct {
 	uint16_t** anTbl;      // Vector de apuntadores a los vectores analógicos
     uint16_t** digTbl;     // Vector de apuntadores a los vectores Digitales
     uint16_t** configTbl;  // Vector de apuntadores a los vectores de configuración
-    uint16_t** auxTbl;     // Vector de apuntadores a los vectores auxiliares
+    uint16_t** auxTbl;     // Vector de apuntadores a los vectores auxiliares          
+    uint16_t** mbTbl16bit;  // Vector de apuntadores a los vectores Modbus de 16 bits   //A reservar según el caso
+    uint8_t** mbTbl8bit;   // Vector de apuntadores a los vectores Modbus de 8 bits     //A reservar según el caso
+    float** mbTblFloat;     // Vector de apuntadores a los vectores Modbus Float        //A reservar según el caso
     float* scalingFactor; //Vector de factores de escalamiento (pendiente m)
     float* scalingOffset; //Vector de desplazamientos en la escala (corte con y -> b)
     float* scaledValues;  //Vector de apuntadores a los vectores de valores escalados
@@ -81,6 +85,16 @@ typedef struct {
 } varTables_t;
 
 varTables_t s3Tables;
+
+struct natFlow
+{
+    uint16_t* PTL;
+    uint16_t* TTL;
+    uint16_t* PTC;
+    uint16_t* PTA;
+    uint16_t* TTA;
+    uint16_t* FT;
+};
 
 
 //Tasks handles
@@ -103,6 +117,7 @@ mb_register_area_descriptor_t reg_area; // Modbus register area descriptor struc
 nvs_handle_t app_nvs_handle;
 
 uint8_t modbus_slave_initialized = 0;
+uint8_t resetRequired = 0;
 
 //____________________________________________________________________________________________________
 // Function prototypes:
@@ -147,6 +162,7 @@ void print_spi_stats(void);
 void spi_task(void *pvParameters);
 
 esp_err_t modbus_slave_init(void);
+esp_err_t create_modbus_map(void);
 
 void scaling_task(void *pvParameters);
 void mb_event_check_task(void *pvParameters);
