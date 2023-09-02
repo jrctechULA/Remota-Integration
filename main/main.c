@@ -147,13 +147,6 @@ void app_main(void)
     rdySem = xSemaphoreCreateBinary();
     spiTaskSem = xSemaphoreCreateBinary();
     
-    /* xTaskCreate(spi_task,
-                "spi_task",
-                STACK_SIZE,
-                NULL,
-                tskIDLE_PRIORITY,
-                &xHandle); */
-
     xTaskCreatePinnedToCore(spi_task,
                 "spi_task",
                 STACK_SIZE,
@@ -175,19 +168,36 @@ void app_main(void)
                 "mb_event_check_task",
                 STACK_SIZE,
                 NULL,
-                (UBaseType_t) 2U,       //Priority Level 0
+                (UBaseType_t) 2U,       //Priority Level 2
                 &xMBEventCheckTaskHandle,
+                1);
+
+    xTaskCreatePinnedToCore(mb_master_poll_task,
+                "mb_master_poll_task",
+                STACK_SIZE,
+                NULL,
+                (UBaseType_t) 1U,       //Priority Level 0
+                &xMBMasterPollTaskHandle,
                 1);
 
     ethernetInit();
 
     modbus_slave_init();
 
+    esp_err_t r = modbus_master_init();
+    if (r != ESP_OK){
+        ESP_LOGE(TAG, "Modbus master initialization error %x", r);
+    }
+    else {
+        modbus_master_initialized = 1;
+        ESP_LOGI(TAG, "Modbus master initialized");
+    }
+
     esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
     esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
     esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
 
-    int counter = 0;
+    //int counter = 0;
 
     while (1){ 
         if (CFG_RUN_PGM){  //Run mode selected:
@@ -477,45 +487,10 @@ void app_main(void)
                 break;
             }
 
-            //Any change in the Modbus registers should be protected by critical section:
-
-            /* portENTER_CRITICAL(&mb_spinlock);
-            for (int i=0; i<s3Tables.anSize; i++){
-                s3Tables.anTbl[1][i] +=5;
-            }
-            for (int i=0; i<s3Tables.digSize; i++){
-                s3Tables.digTbl[1][i] +=5;
-            }
-            portEXIT_CRITICAL(&mb_spinlock); */
-
-            
-            
-            /* ESP_LOGI(TAG, "Analog inputs table:");
-            tablePrint(s3Tables.anTbl[0],  s3Tables.anSize);
-            ESP_LOGI(TAG, "Scaled input values:");
-            tablePrintFloat(s3Tables.scaledValues, s3Tables.anSize);
-            ESP_LOGI(TAG, "Digital inputs table:");
-            tablePrint(s3Tables.digTbl[0], s3Tables.digSize);
-            ESP_LOGW(TAG, "Analog outputs table:");
-            tablePrint(s3Tables.anTbl[1],  s3Tables.anSize);
-            ESP_LOGW(TAG, "Digital outputs table:");
-            tablePrint(s3Tables.digTbl[1], s3Tables.digSize); */
-
             gpio_set_level(ledGreen, 0);
             vTaskDelay(pdMS_TO_TICKS(500));       
             gpio_set_level(ledGreen, 1);
             vTaskDelay(pdMS_TO_TICKS(500));
-
-            /* counter++;
-            if (counter == 15){
-                while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
-                    continue;
-                ESP_LOGE(TAG, "SPI taken by app main");
-                readAllTables(&s3Tables);
-                xSemaphoreGive(spiTaskSem);
-                counter = 0;
-            } */
-
             
         }
         else{  //Program mode selected
@@ -537,6 +512,38 @@ void app_main(void)
             
         }
         vTaskDelay(pdMS_TO_TICKS(10));
+
+        //Any change in the Modbus registers should be protected by critical section:
+
+        /* portENTER_CRITICAL(&mb_spinlock);
+        for (int i=0; i<s3Tables.anSize; i++){
+            s3Tables.anTbl[1][i] +=5;
+        }
+        for (int i=0; i<s3Tables.digSize; i++){
+            s3Tables.digTbl[1][i] +=5;
+        }
+        portEXIT_CRITICAL(&mb_spinlock); */
+
+        /* ESP_LOGI(TAG, "Analog inputs table:");
+        tablePrint(s3Tables.anTbl[0],  s3Tables.anSize);
+        ESP_LOGI(TAG, "Scaled input values:");
+        tablePrintFloat(s3Tables.scaledValues, s3Tables.anSize);
+        ESP_LOGI(TAG, "Digital inputs table:");
+        tablePrint(s3Tables.digTbl[0], s3Tables.digSize);
+        ESP_LOGW(TAG, "Analog outputs table:");
+        tablePrint(s3Tables.anTbl[1],  s3Tables.anSize);
+        ESP_LOGW(TAG, "Digital outputs table:");
+        tablePrint(s3Tables.digTbl[1], s3Tables.digSize); */
+
+        /* counter++;
+        if (counter == 15){
+            while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
+                continue;
+            ESP_LOGE(TAG, "SPI taken by app main");
+            readAllTables(&s3Tables);
+            xSemaphoreGive(spiTaskSem);
+            counter = 0;
+        } */
     }
     
     //Liberar memoria
@@ -1203,11 +1210,12 @@ void spi_task(void *pvParameters)
 
     xSemaphoreGive(rdySem);
     cycleTimeStart = 0;
+    //spi_exchgTime = 0;
     
     while (1)
     {
         cycleTimeFinish = esp_timer_get_time();
-        SPI_CYCLE_TIME = cycleTimeFinish - cycleTimeStart + SPI_EXCHANGE_TIME;
+        SPI_CYCLE_TIME = (cycleTimeFinish - cycleTimeStart + SPI_EXCHANGE_TIME);
 
         //SPI exchange block:
         //______________________________________________________
@@ -1260,6 +1268,7 @@ esp_err_t modbus_slave_init(void){
         .ip_addr_type = MB_IPV4,                   // version of IP protocol
         .ip_mode = MB_MODE_TCP,                    // Port communication mode
         .ip_addr = NULL,                           // This field keeps the client IP address to bind, NULL - bind to any client
+        .slave_uid = 1,
         .ip_netif_ptr = eth_netif                  // eth_netif - pointer to the corresponding network interface
     };
 
@@ -1745,6 +1754,38 @@ esp_err_t create_modbus_map(void){
     return ESP_OK;
 }
 
+esp_err_t modbus_master_init(void){
+    void* master_handler = NULL; // Pointer to allocate interface structure
+    // Initialization of Modbus master for TCP/IP
+    esp_err_t err = mbc_master_init_tcp(&master_handler);
+    if (master_handler == NULL || err != ESP_OK) {
+        ESP_LOGE(TAG, "mb controller initialization fail.");
+    }
+
+    const char* slave_ip_address_table[3] = {
+        "172.16.0.4",     // Address corresponds to UID1 and set to predefined value by user
+        NULL               // end of table
+    };
+
+    const mb_communication_info_t comm_info = {
+        .ip_port = 502,                    // Modbus TCP port number (default = 502)
+        .ip_addr_type = MB_IPV4,                   // version of IP protocol
+        .ip_mode = MB_MODE_TCP,                    // Port communication mode
+        .ip_addr = (void*)slave_ip_address_table,  // assign table of IP addresses
+        .ip_netif_ptr = eth_netif              // esp_netif_ptr pointer to the corresponding network interface
+    };
+
+    ESP_ERROR_CHECK(mbc_master_setup((void*)&comm_info));
+    
+    ESP_ERROR_CHECK(mbc_master_set_descriptor(&device_parameters[0], num_device_parameters));
+
+    err = mbc_master_start();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "mb controller start fail, err=%x.", err);
+    }
+    return err;
+}
+
 void scaling_task(void *pvParameters){
     float y, m, x, b;
 
@@ -1766,8 +1807,10 @@ void mb_event_check_task(void *pvParameters){
     mb_param_info_t reg_info;
     size_t size = sizeof(float);
 
-    while(!modbus_slave_initialized)
+    while(!modbus_slave_initialized){
+        vTaskDelay(pdMS_TO_TICKS(20));
         continue;
+    }
 
     while (1)
     {
@@ -1929,6 +1972,179 @@ void mb_event_check_task(void *pvParameters){
     }
     
     taskYIELD();
+}
+
+void mb_master_poll(){
+    uint16_t temp_data[1] = {0};    // temporary buffer to hold maximum CID size
+    uint16_t temp_data2[1] = {150}; // temporary buffer to hold maximum CID size
+    uint8_t temp_data3[1] = {0};    // temporary buffer to hold maximum CID size
+    uint8_t temp_data4[1] = {0};    // temporary buffer to hold maximum CID size
+    uint8_t type = 0;               //Type of parameter
+    int cid;
+    esp_err_t err;
+    const mb_parameter_descriptor_t* param_descriptor = NULL;
+
+    // Get the information for characteristic cid from data dictionary
+    cid = 1;
+    err = mbc_master_get_cid_info(cid, &param_descriptor);
+    if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
+        err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)temp_data, &type);
+        if (err == ESP_OK) {
+            /* ESP_LOGW(TAG, "Characteristic #%d %s (%s) value = (%u) read successful.",
+                            param_descriptor->cid,
+                            (char*)param_descriptor->param_key,
+                            (char*)param_descriptor->param_units,
+                            *(uint16_t*)temp_data); */
+        } else {
+            ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
+                            param_descriptor->cid,
+                            (char*)param_descriptor->param_key,
+                            (int)err,
+                            (char*)esp_err_to_name(err));
+        }
+    } else {
+        ESP_LOGE(TAG, "Could not get information for characteristic %d.", cid);
+    }
+
+    if (temp_data[0] < 1000)
+        temp_data3[0] = 0;
+    else
+        temp_data3[0] = 1;
+    
+
+    // Get the information for characteristic cid from data dictionary
+    cid = 3;
+    err = mbc_master_get_cid_info(cid, &param_descriptor);
+    if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
+        err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)temp_data4, &type);
+        if (err == ESP_OK) {
+            /* ESP_LOGW(TAG, "Characteristic #%d %s (%s) value = (%u) read successful.",
+                            param_descriptor->cid,
+                            (char*)param_descriptor->param_key,
+                            (char*)param_descriptor->param_units,
+                            *(uint8_t*)temp_data4); */
+        } else {
+            ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
+                            param_descriptor->cid,
+                            (char*)param_descriptor->param_key,
+                            (int)err,
+                            (char*)esp_err_to_name(err));
+        }
+    } else {
+        ESP_LOGE(TAG, "Could not get information for characteristic %d.", cid);
+    }
+
+    gpio_set_level(ledGreen, temp_data4[0]);
+
+
+    err = mbc_master_set_parameter(CID_COIL_1, "Coil_1", (uint8_t*)temp_data3, &type);
+    if (err == ESP_OK) {
+        //ESP_LOGW(TAG, "Set parameter data successfully.");
+    } else {
+        ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
+    }
+
+    err = mbc_master_set_parameter(CID_HOLDING_1, "Holding_1", (uint8_t*)temp_data2, &type);
+    if (err == ESP_OK) {
+        //ESP_LOGW(TAG, "Set parameter data successfully.");
+    } else {
+        ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
+    }
+    temp_data2[0]++;
+
+    printf("\n\n");
+}
+
+void mb_master_poll_task(void *pvParameters){
+    uint16_t temp_data[1] = {0};    // temporary buffer to hold maximum CID size
+    uint16_t temp_data2[1] = {150}; // temporary buffer to hold maximum CID size
+    uint8_t temp_data3[1] = {0};    // temporary buffer to hold maximum CID size
+    uint8_t temp_data4[1] = {0};    // temporary buffer to hold maximum CID size
+    uint8_t type = 0;               //Type of parameter
+    int cid;
+    esp_err_t err;
+    const mb_parameter_descriptor_t* param_descriptor = NULL;
+    
+    while(!modbus_master_initialized){
+        vTaskDelay(pdMS_TO_TICKS(20));
+        continue;
+    }
+    
+    while (1)
+    {
+        // Get the information for characteristic cid from data dictionary
+        cid = 1;
+        err = mbc_master_get_cid_info(cid, &param_descriptor);
+        if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
+            err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)temp_data, &type);
+            if (err == ESP_OK) {
+                /* ESP_LOGW(TAG, "Characteristic #%d %s (%s) value = (%u) read successful.",
+                                param_descriptor->cid,
+                                (char*)param_descriptor->param_key,
+                                (char*)param_descriptor->param_units,
+                                *(uint16_t*)temp_data); */
+            } else {
+                ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
+                                param_descriptor->cid,
+                                (char*)param_descriptor->param_key,
+                                (int)err,
+                                (char*)esp_err_to_name(err));
+            }
+        } else {
+            ESP_LOGE(TAG, "Could not get information for characteristic %d.", cid);
+        }
+
+        if (temp_data[0] < 1000)
+            temp_data3[0] = 0;
+        else
+            temp_data3[0] = 1;
+     
+
+        // Get the information for characteristic cid from data dictionary
+        cid = 3;
+        err = mbc_master_get_cid_info(cid, &param_descriptor);
+        if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
+            err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)temp_data4, &type);
+            if (err == ESP_OK) {
+                /* ESP_LOGW(TAG, "Characteristic #%d %s (%s) value = (%u) read successful.",
+                                param_descriptor->cid,
+                                (char*)param_descriptor->param_key,
+                                (char*)param_descriptor->param_units,
+                                *(uint8_t*)temp_data4); */
+            } else {
+                ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
+                                param_descriptor->cid,
+                                (char*)param_descriptor->param_key,
+                                (int)err,
+                                (char*)esp_err_to_name(err));
+            }
+        } else {
+            ESP_LOGE(TAG, "Could not get information for characteristic %d.", cid);
+        }
+
+        //gpio_set_level(ledGreen, temp_data4[0]);
+
+
+        err = mbc_master_set_parameter(CID_COIL_1, "Coil_1", (uint8_t*)temp_data3, &type);
+        if (err == ESP_OK) {
+            //ESP_LOGW(TAG, "Set parameter data successfully.");
+        } else {
+            ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
+        }
+
+        err = mbc_master_set_parameter(CID_HOLDING_1, "Holding_1", (uint8_t*)temp_data2, &type);
+        if (err == ESP_OK) {
+            //ESP_LOGW(TAG, "Set parameter data successfully.");
+        } else {
+            ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
+        }
+        temp_data2[0]++;
+
+        //printf("\n\n");
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+    
 }
 
 esp_err_t init_nvs(void){
