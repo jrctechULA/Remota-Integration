@@ -28,14 +28,16 @@
 
 #define CFG_REMOTA_LOG_LEVEL s3Tables.configTbl[0][49]
 
-#define CFG_RUN_PGM s3Tables.configTbl[0][0]   //Run mode or Config mode
-#define CFG_OP_MODE s3Tables.configTbl[0][1]   //Operation mode 0-5
-#define CFG_IP0 &s3Tables.configTbl[0][2]      //IP address for Ethernet 0
-#define CFG_IP1 &s3Tables.configTbl[0][4]      //IP address for Ethernet 1
-#define CFG_IP2 &s3Tables.configTbl[0][6]     //IP address for WiFi (Station mode)
-#define CFG_IP3 &s3Tables.configTbl[0][8]     //IP address for WiFi (AP mode)
-#define CFG_GW &s3Tables.configTbl[0][10]      //Gateway
-#define CFG_DHCP s3Tables.configTbl[0][12]     //DHCP on/off
+#define CFG_RUN_PGM s3Tables.configTbl[0][0]              //Run mode or Config mode
+#define CFG_OP_MODE s3Tables.configTbl[0][1]              //Operation mode 0-5
+#define CFG_IP0 &s3Tables.configTbl[0][2]                 //IP address for Ethernet 0
+#define CFG_IP1 &s3Tables.configTbl[0][4]                 //IP address for Ethernet 1
+#define CFG_IP2 &s3Tables.configTbl[0][6]                 //IP address for WiFi (Station mode)
+#define CFG_IP3 &s3Tables.configTbl[0][8]                 //IP address for WiFi (AP mode)
+#define CFG_GW &s3Tables.configTbl[0][10]                 //Gateway
+#define CFG_DHCP s3Tables.configTbl[0][12]                //DHCP on/off
+#define CFG_MB_MASTER_INTERFACE s3Tables.configTbl[0][13]        //Modbus master interface (TCP or RTU)
+#define CFG_MB_MASTER_BAUDRATE s3Tables.configTbl[0][14]  //Modbus RTU Baudrate
 
 #define CONFIG_FREERTOS_HZ 100
 
@@ -125,82 +127,82 @@ uint8_t modbus_master_initialized = 0;
 uint8_t resetRequired = 0;
 
 // Enumeration of modbus slave addresses accessed by master device
-enum {
-    MB_DEVICE_ADDR1 = 1,
-    MB_SLAVE_COUNT
-};
+// enum {
+//     MB_DEVICE_ADDR1 = 1,
+//     MB_SLAVE_COUNT
+// };
 
 // Enumeration of all supported CIDs for device
-enum {
-    CID_HOLDING_1 = 0,
-    CID_HOLDING_2,
-    CID_COIL_1,
-    CID_DISCRETE_1
-};
+//enum {
+//    CID_HOLDING_1 = 0,
+//    CID_HOLDING_2,
+//    CID_COIL_1,
+//    CID_DISCRETE_1
+//};
 
 // Modbus Dictionary
-const mb_parameter_descriptor_t device_parameters[] = {
+//const mb_parameter_descriptor_t device_parameters[] = {
     // CID, Name, Units, Modbus addr, register type, Modbus Reg Start Addr, Modbus Reg read length,
     // Instance offset (NA), Instance type, Instance length (bytes), Options (NA), Permissions
-    { CID_HOLDING_1,                    // CID
-      STR("Holding_1"),                 // Param Name
-      STR("--"),                        // Units
-      MB_DEVICE_ADDR1,                  // Modbus Slave Addr
-      MB_PARAM_HOLDING,                 // Modbus Reg Type
-      0,                                // Reg Start
-      1,                                // Reg Size
-      0,                                // Instance Offset
-      PARAM_TYPE_U16,                   // Data Type
-      2,                                // Data Size
-      OPTS( 0,0,0 ),                    // Parameter options MIN-MAX-STEP
-      PAR_PERMS_READ_WRITE_TRIGGER      // Access Mode
-    },
+//    { CID_HOLDING_1,                    // CID
+//      STR("Holding_1"),                 // Param Name
+//      STR("--"),                        // Units
+//      MB_DEVICE_ADDR1,                  // Modbus Slave Addr
+//      MB_PARAM_HOLDING,                 // Modbus Reg Type
+//      0,                                // Reg Start
+//      1,                                // Reg Size
+//      0,                                // Instance Offset
+//      PARAM_TYPE_U16,                   // Data Type
+//      2,                                // Data Size
+//      OPTS( 0,0,0 ),                    // Parameter options MIN-MAX-STEP
+//      PAR_PERMS_READ_WRITE_TRIGGER      // Access Mode
+//    },
 
-    { CID_HOLDING_2,                    // CID
-      STR("Holding_2"),                 // Param Name
-      STR("--"),                        // Units
-      MB_DEVICE_ADDR1,                  // Modbus Slave Addr
-      MB_PARAM_HOLDING,                 // Modbus Reg Type
-      1,                                // Reg Start
-      1,                                // Reg Size
-      0,                                // Instance Offset
-      PARAM_TYPE_U16,                   // Data Type
-      2,                                // Data Size
-      OPTS( 0,0,0 ),                    // Parameter options MIN-MAX-STEP
-      PAR_PERMS_READ_WRITE_TRIGGER      // Access Mode
-    },
+//    { CID_HOLDING_2,                    // CID
+//      STR("Holding_2"),                 // Param Name
+//      STR("--"),                        // Units
+//      MB_DEVICE_ADDR1,                  // Modbus Slave Addr
+//      MB_PARAM_HOLDING,                 // Modbus Reg Type
+//      1,                                // Reg Start
+//      1,                                // Reg Size
+//      0,                                // Instance Offset
+//      PARAM_TYPE_U16,                   // Data Type
+//      2,                                // Data Size
+//      OPTS( 0,0,0 ),                    // Parameter options MIN-MAX-STEP
+//      PAR_PERMS_READ_WRITE_TRIGGER      // Access Mode
+//    },
 
-    { CID_COIL_1,                       // CID
-      STR("Coil_1"),                    // Param Name
-      STR("on/off"),                    // Units
-      MB_DEVICE_ADDR1,                  // Modbus Slave Addr
-      MB_PARAM_COIL,                    // Modbus Reg Type
-      0,                                // Reg Start
-      1,                                // Reg Size
-      0,                                // Instance Offset
-      PARAM_TYPE_U8,                    // Data Type
-      1,                                // Data Size
-      OPTS( 0,0,0 ),                    // Parameter options MIN-MAX-STEP
-      PAR_PERMS_READ_WRITE_TRIGGER      // Access Mode
-    },
+//    { CID_COIL_1,                       // CID
+//      STR("Coil_1"),                    // Param Name
+//      STR("on/off"),                    // Units
+//      MB_DEVICE_ADDR1,                  // Modbus Slave Addr
+//      MB_PARAM_COIL,                    // Modbus Reg Type
+//      0,                                // Reg Start
+//      1,                                // Reg Size
+//      0,                                // Instance Offset
+//      PARAM_TYPE_U8,                    // Data Type
+//      1,                                // Data Size
+//      OPTS( 0,0,0 ),                    // Parameter options MIN-MAX-STEP
+//      PAR_PERMS_READ_WRITE_TRIGGER      // Access Mode
+//    },
 
-    { CID_DISCRETE_1,                    // CID
-      STR("Discrete_1"),                 // Param Name
-      STR("on/off"),                     // Units
-      MB_DEVICE_ADDR1,                   // Modbus Slave Addr
-      MB_PARAM_DISCRETE,                 // Modbus Reg Type
-      0,                                 // Reg Start
-      1,                                 // Reg Size
-      0,                                 // Instance Offset
-      PARAM_TYPE_U8,                     // Data Type
-      1,                                 // Data Size
-      OPTS( 0,0,0 ),                     // Parameter options MIN-MAX-STEP
-      PAR_PERMS_READ_WRITE_TRIGGER       // Access Mode
-    },
-};
+//    { CID_DISCRETE_1,                    // CID
+//      STR("Discrete_1"),                 // Param Name
+//      STR("on/off"),                     // Units
+//      MB_DEVICE_ADDR1,                   // Modbus Slave Addr
+//      MB_PARAM_DISCRETE,                 // Modbus Reg Type
+//      0,                                 // Reg Start
+//      1,                                 // Reg Size
+//      0,                                 // Instance Offset
+//      PARAM_TYPE_U8,                     // Data Type
+//      1,                                 // Data Size
+//      OPTS( 0,0,0 ),                     // Parameter options MIN-MAX-STEP
+//      PAR_PERMS_READ_WRITE_TRIGGER       // Access Mode
+//    },
+//};
 
 // Calculate number of parameters in the table
-uint16_t num_device_parameters = (sizeof(device_parameters) / sizeof(device_parameters[0]));
+//uint16_t num_device_parameters = (sizeof(device_parameters) / sizeof(device_parameters[0]));
 
 //____________________________________________________________________________________________________
 // Function prototypes:
@@ -252,7 +254,6 @@ void scaling_task(void *pvParameters);
 
 void mb_event_check_task(void *pvParameters);
 
-void mb_master_poll(void);
 void mb_master_poll_task(void *pvParameters);
 
 esp_err_t init_nvs(void);

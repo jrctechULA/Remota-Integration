@@ -25,6 +25,7 @@
         "regex": "c",
         "utility": "c",
         "esp_task_wdt.h": "c",
-        "mbcontroller.h": "c"
+        "mbcontroller.h": "c",
+        "mb_dictionaries.h": "c"
     }
 }
