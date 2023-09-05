@@ -6,6 +6,10 @@ enum {
     MB_SLAVE_COUNT
 };
 
+
+//____________________________________________________________________________________________________
+// Mechanical Punp Wells Slave Definitions:
+//____________________________________________________________________________________________________
 // Enumeration of all supported CIDs for device
 enum {
     MP_ETM = 0,
@@ -16,7 +20,7 @@ enum {
 };
 
 // Modbus Dictionary
-const mb_parameter_descriptor_t device_parameters[] = {
+const mb_parameter_descriptor_t MP_device_parameters[] = {
     // CID, Name, Units, Modbus addr, register type, Modbus Reg Start Addr, Modbus Reg read length,
     // Instance offset (NA), Instance type, Instance length (bytes), Options (NA), Permissions
     
@@ -93,4 +97,4 @@ const mb_parameter_descriptor_t device_parameters[] = {
 };
 
 // Calculate number of parameters in the table
-uint16_t num_device_parameters = (sizeof(device_parameters) / sizeof(device_parameters[0]));
+uint16_t num_MP_device_parameters = (sizeof(MP_device_parameters) / sizeof(MP_device_parameters[0]));

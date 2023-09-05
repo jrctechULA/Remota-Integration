@@ -124,6 +124,7 @@ nvs_handle_t app_nvs_handle;
 
 uint8_t modbus_slave_initialized = 0;
 uint8_t modbus_master_initialized = 0;
+uint8_t mb_master_task_created = 0;
 uint8_t resetRequired = 0;
 
 // Enumeration of modbus slave addresses accessed by master device
