@@ -36,8 +36,19 @@
 #define CFG_IP3 &s3Tables.configTbl[0][8]                 //IP address for WiFi (AP mode)
 #define CFG_GW &s3Tables.configTbl[0][10]                 //Gateway
 #define CFG_DHCP s3Tables.configTbl[0][12]                //DHCP on/off
-#define CFG_MB_MASTER_INTERFACE s3Tables.configTbl[0][13]        //Modbus master interface (TCP or RTU)
-#define CFG_MB_MASTER_BAUDRATE s3Tables.configTbl[0][14]  //Modbus RTU Baudrate
+#define CFG_MB_MASTER_INTERFACE s3Tables.configTbl[0][13]        //Modbus master interface (TCP or RTU) //40030
+#define CFG_MB_MASTER_BAUDRATE_H s3Tables.configTbl[0][14]  //Modbus Master RTU Baudrate High Register  //40031
+#define CFG_MB_MASTER_BAUDRATE_L s3Tables.configTbl[0][15]  //Modbus Master RTU Baudrate Low Register   //40032
+#define CFG_MB_SLAVE_INTERFACE s3Tables.configTbl[0][16]  //Modbus slave interface (TCP or RTU)         //40033
+#define CFG_MB_SLAVE_BAUDRATE_H s3Tables.configTbl[0][17]   //Modbus Slave RTU Baudrate High Register   //40034
+#define CFG_MB_SLAVE_BAUDRATE_L s3Tables.configTbl[0][18]   //Modbus Slave RTU Baudrate Low Register    //40035
+
+#define CFG_SLAVE_IP &s3Tables.configTbl[0][19]             //IP address for slave field device (Modbus TCP)
+
+#define CFG_GL_TMR_INTERVAL s3Tables.configTbl[0][21]  // Intervalo del timer para el acumulador de volumen diario de gas   40036
+#define CFG_GL_FILTER_ALPHA s3Tables.configTbl[0][22]  // Constante de tiempo para el filtro de primer orden aplicado a la medición de flujo  40037
+
+#define MS24H 86400000                                 // Milisegundos en 24H
 
 #define CONFIG_FREERTOS_HZ 100
 
@@ -91,22 +102,13 @@ typedef struct {
 
 varTables_t s3Tables;
 
-struct natFlow
-{
-    uint16_t* PTL;
-    uint16_t* TTL;
-    uint16_t* PTC;
-    uint16_t* PTA;
-    uint16_t* TTA;
-    uint16_t* FT;
-};
-
 
 //Tasks handles
 TaskHandle_t xSPITaskHandle = NULL;
 TaskHandle_t xScalingTaskHandle = NULL;
 TaskHandle_t xMBEventCheckTaskHandle = NULL;
 TaskHandle_t xMBMasterPollTaskHandle = NULL;
+TimerHandle_t xGL_Timer = NULL;
 
 //The semaphore indicating the slave is ready to receive stuff.
 QueueHandle_t rdySem;
@@ -127,83 +129,9 @@ uint8_t modbus_master_initialized = 0;
 uint8_t mb_master_task_created = 0;
 uint8_t resetRequired = 0;
 
-// Enumeration of modbus slave addresses accessed by master device
-// enum {
-//     MB_DEVICE_ADDR1 = 1,
-//     MB_SLAVE_COUNT
-// };
-
-// Enumeration of all supported CIDs for device
-//enum {
-//    CID_HOLDING_1 = 0,
-//    CID_HOLDING_2,
-//    CID_COIL_1,
-//    CID_DISCRETE_1
-//};
-
-// Modbus Dictionary
-//const mb_parameter_descriptor_t device_parameters[] = {
-    // CID, Name, Units, Modbus addr, register type, Modbus Reg Start Addr, Modbus Reg read length,
-    // Instance offset (NA), Instance type, Instance length (bytes), Options (NA), Permissions
-//    { CID_HOLDING_1,                    // CID
-//      STR("Holding_1"),                 // Param Name
-//      STR("--"),                        // Units
-//      MB_DEVICE_ADDR1,                  // Modbus Slave Addr
-//      MB_PARAM_HOLDING,                 // Modbus Reg Type
-//      0,                                // Reg Start
-//      1,                                // Reg Size
-//      0,                                // Instance Offset
-//      PARAM_TYPE_U16,                   // Data Type
-//      2,                                // Data Size
-//      OPTS( 0,0,0 ),                    // Parameter options MIN-MAX-STEP
-//      PAR_PERMS_READ_WRITE_TRIGGER      // Access Mode
-//    },
-
-//    { CID_HOLDING_2,                    // CID
-//      STR("Holding_2"),                 // Param Name
-//      STR("--"),                        // Units
-//      MB_DEVICE_ADDR1,                  // Modbus Slave Addr
-//      MB_PARAM_HOLDING,                 // Modbus Reg Type
-//      1,                                // Reg Start
-//      1,                                // Reg Size
-//      0,                                // Instance Offset
-//      PARAM_TYPE_U16,                   // Data Type
-//      2,                                // Data Size
-//      OPTS( 0,0,0 ),                    // Parameter options MIN-MAX-STEP
-//      PAR_PERMS_READ_WRITE_TRIGGER      // Access Mode
-//    },
-
-//    { CID_COIL_1,                       // CID
-//      STR("Coil_1"),                    // Param Name
-//      STR("on/off"),                    // Units
-//      MB_DEVICE_ADDR1,                  // Modbus Slave Addr
-//      MB_PARAM_COIL,                    // Modbus Reg Type
-//      0,                                // Reg Start
-//      1,                                // Reg Size
-//      0,                                // Instance Offset
-//      PARAM_TYPE_U8,                    // Data Type
-//      1,                                // Data Size
-//      OPTS( 0,0,0 ),                    // Parameter options MIN-MAX-STEP
-//      PAR_PERMS_READ_WRITE_TRIGGER      // Access Mode
-//    },
-
-//    { CID_DISCRETE_1,                    // CID
-//      STR("Discrete_1"),                 // Param Name
-//      STR("on/off"),                     // Units
-//      MB_DEVICE_ADDR1,                   // Modbus Slave Addr
-//      MB_PARAM_DISCRETE,                 // Modbus Reg Type
-//      0,                                 // Reg Start
-//      1,                                 // Reg Size
-//      0,                                 // Instance Offset
-//      PARAM_TYPE_U8,                     // Data Type
-//      1,                                 // Data Size
-//      OPTS( 0,0,0 ),                     // Parameter options MIN-MAX-STEP
-//      PAR_PERMS_READ_WRITE_TRIGGER       // Access Mode
-//    },
-//};
-
-// Calculate number of parameters in the table
-//uint16_t num_device_parameters = (sizeof(device_parameters) / sizeof(device_parameters[0]));
+uint32_t msCounter24 = 0;
+float last_ftgl = 0;
+float ftglFiltered = 0;
 
 //____________________________________________________________________________________________________
 // Function prototypes:
@@ -257,11 +185,13 @@ void mb_event_check_task(void *pvParameters);
 
 void mb_master_poll_task(void *pvParameters);
 
+void GLTimerCallBack(TimerHandle_t pxTimer);
+
 esp_err_t init_nvs(void);
 esp_err_t read_nvs(char *key, uint16_t *value);
 esp_err_t write_nvs(char *key, uint16_t value);
 esp_err_t create_table_nvs(char *c, uint8_t tableSize);
 esp_err_t create_float_table_nvs(char *c, uint8_t tableSize);
-//remota globals block 3 end
+esp_err_t set_configDefaults_nvs(void);
 
 #endif

@@ -16,11 +16,11 @@
 #define NF_AI_TTA s3Tables.anTbl[0][4]      // Temperatura del casing o anular
 #define NF_AI_FT  s3Tables.anTbl[0][5]      // Flujo de producción
 
-#define NF_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)        // Alarma por falla de sistema
-#define NF_DI_YA2   (s3Tables.digTbl[0][0] & 0x0002)  >> 1  // Alarma de intruso
-#define NF_DI_GZA   (s3Tables.digTbl[0][0] & 0x0004)  >> 2  // Alarma por gas tóxico
-#define NF_DI_EAAC  (s3Tables.digTbl[0][0] & 0x0008)  >> 3  // Alarma por falla de voltaje AC
-#define NF_DI_EADC  (s3Tables.digTbl[0][0] & 0x00016) >> 4  // Alarma por falla de voltaje DC
+#define NF_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)          // Alarma por falla de sistema
+#define NF_DI_YA2   ((s3Tables.digTbl[0][0] & 0x0002)  >> 1)  // Alarma de intruso
+#define NF_DI_GZA   ((s3Tables.digTbl[0][0] & 0x0004)  >> 2)  // Alarma por gas tóxico
+#define NF_DI_EAAC  ((s3Tables.digTbl[0][0] & 0x0008)  >> 3)  // Alarma por falla de voltaje AC
+#define NF_DI_EADC  ((s3Tables.digTbl[0][0] & 0x00016) >> 4)  // Alarma por falla de voltaje DC
 
 #define NF_DO_XV    (s3Tables.digTbl[1][0] & 0x0001)        // Apertura/cierre de pozo
 
@@ -56,13 +56,17 @@
 
 #define GL_AO_FCV  s3Tables.anTbl[1][0]      // Flujo de gas al pozo
 
-#define GL_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)        // Alarma por falla de sistema
-#define GL_DI_YA2   (s3Tables.digTbl[0][0] & 0x0002)  >> 1  // Alarma de intruso
-#define GL_DI_GZA   (s3Tables.digTbl[0][0] & 0x0004)  >> 2  // Alarma por gas tóxico
-#define GL_DI_EAAC  (s3Tables.digTbl[0][0] & 0x0008)  >> 3  // Alarma por falla de voltaje AC
-#define GL_DI_EADC  (s3Tables.digTbl[0][0] & 0x00016) >> 4  // Alarma por falla de voltaje DC
+#define GL_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)          // Alarma por falla de sistema
+#define GL_DI_YA2   ((s3Tables.digTbl[0][0] & 0x0002)  >> 1)  // Alarma de intruso
+#define GL_DI_GZA   ((s3Tables.digTbl[0][0] & 0x0004)  >> 2)  // Alarma por gas tóxico
+#define GL_DI_EAAC  ((s3Tables.digTbl[0][0] & 0x0008)  >> 3)  // Alarma por falla de voltaje AC
+#define GL_DI_EADC  ((s3Tables.digTbl[0][0] & 0x00016) >> 4)  // Alarma por falla de voltaje DC
+  
+#define GL_FQ24    s3Tables.mbTblFloat[0][0]  // Volumen total diario de gas (24H)
+#define GL_FQ48    s3Tables.mbTblFloat[0][1]  // Volumen total de gas en 48H
+#define GL_FQ72    s3Tables.mbTblFloat[0][2]  // Volumen total de gas en 72H
 
-#define GL_FQ      s3Tables.auxTbl[0][5]     // Volumen total diario de gas
+#define GL_FQ24_PROY s3Tables.mbTblFloat[0][3]  // Volumen proyectado diario de gas (24H)
 
 #define GL_SF_PTL  s3Tables.scalingFactor[0]      // Presión de la línea de producción (Factor de escalamiento)
 #define GL_SF_TTL  s3Tables.scalingFactor[1]      // Temperatura de la línea de producción (Factor de escalamiento)
@@ -95,11 +99,11 @@
 #define MP_AI_ZT  s3Tables.anTbl[0][5]      // Ángulo de la viga
 #define MP_AI_WT  s3Tables.anTbl[0][6]      // Carga de la sarta
 
-#define MP_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)  // Alarma por falla de sistema
-#define MP_DI_YA2   (s3Tables.digTbl[0][0] & 0x0002)  >> 1  // Alarma de intruso
-#define MP_DI_GZA   (s3Tables.digTbl[0][0] & 0x0004)  >> 2  // Alarma por gas tóxico
-#define MP_DI_EAAC  (s3Tables.digTbl[0][0] & 0x0008)  >> 3  // Alarma por falla de voltaje AC
-#define MP_DI_EADC  (s3Tables.digTbl[0][0] & 0x00016) >> 4  // Alarma por falla de voltaje DC
+#define MP_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)          // Alarma por falla de sistema
+#define MP_DI_YA2   ((s3Tables.digTbl[0][0] & 0x0002)  >> 1)  // Alarma de intruso
+#define MP_DI_GZA   ((s3Tables.digTbl[0][0] & 0x0004)  >> 2)  // Alarma por gas tóxico
+#define MP_DI_EAAC  ((s3Tables.digTbl[0][0] & 0x0008)  >> 3)  // Alarma por falla de voltaje AC
+#define MP_DI_EADC  ((s3Tables.digTbl[0][0] & 0x00016) >> 4)  // Alarma por falla de voltaje DC
 
 #define MP_DO_HS1   (s3Tables.digTbl[1][0] & 0x0001)  // Encendido/apagado de bombeo
 
@@ -147,11 +151,11 @@
 #define ES_AI_TTDB  s3Tables.anTbl[0][7]      // Temperatura de descarga de la bomba
 #define ES_AI_VT    s3Tables.anTbl[0][8]      // Vibración de bomba
 
-#define ES_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)        // Alarma por falla de sistema
-#define ES_DI_YA2   (s3Tables.digTbl[0][0] & 0x0002) >> 1   // Alarma de intruso
-#define ES_DI_GZA   (s3Tables.digTbl[0][0] & 0x0004) >> 2   // Alarma por gas tóxico
-#define ES_DI_EAAC  (s3Tables.digTbl[0][0] & 0x0008) >> 3   // Alarma por falla de voltaje AC
-#define ES_DI_EADC  (s3Tables.digTbl[0][0] & 0x00016) >> 4  // Alarma por falla de voltaje DC
+#define ES_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)          // Alarma por falla de sistema
+#define ES_DI_YA2   ((s3Tables.digTbl[0][0] & 0x0002) >> 1)   // Alarma de intruso
+#define ES_DI_GZA   ((s3Tables.digTbl[0][0] & 0x0004) >> 2)   // Alarma por gas tóxico
+#define ES_DI_EAAC  ((s3Tables.digTbl[0][0] & 0x0008) >> 3)   // Alarma por falla de voltaje AC
+#define ES_DI_EADC  ((s3Tables.digTbl[0][0] & 0x00016) >> 4)  // Alarma por falla de voltaje DC
 
 #define ES_DO_HS1   (s3Tables.digTbl[1][0] & 0x0001)  // Encendido/apagado de bombeo
 
@@ -206,8 +210,8 @@
 
 #define ES_DISCRETE_YI (s3Tables.mbTbl8bit[0][0] & 0x01)        // Encendido/apagado
 
-#define ES_COIL_HS1    (s3Tables.mbTbl8bit[0][1] & 0x01)        // Encendido/apagado
-#define ES_COIL_HS2    (s3Tables.mbTbl8bit[0][1] & 0x02) >> 1   // Reposición de causa de paro
+#define ES_COIL_HS1    (s3Tables.mbTbl8bit[0][1] & 0x01)          // Encendido/apagado
+#define ES_COIL_HS2    ((s3Tables.mbTbl8bit[0][1] & 0x02) >> 1)   // Reposición de causa de paro
 
 //Macros for: Progressive cavity pump wells
 //_______________________________________________________________________________________________________________
@@ -219,11 +223,11 @@
 #define PC_AI_TTDB  s3Tables.anTbl[0][5]      // Temperatura de descarga de la bomba
 #define PC_AI_VT    s3Tables.anTbl[0][6]      // Vibración de bomba
 
-#define PC_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)        // Alarma por falla de sistema
-#define PC_DI_YA2   (s3Tables.digTbl[0][0] & 0x0002)  >> 1  // Alarma de intruso
-#define PC_DI_GZA   (s3Tables.digTbl[0][0] & 0x0004)  >> 2  // Alarma por gas tóxico
-#define PC_DI_EAAC  (s3Tables.digTbl[0][0] & 0x0008)  >> 3  // Alarma por falla de voltaje AC
-#define PC_DI_EADC  (s3Tables.digTbl[0][0] & 0x00016) >> 4  // Alarma por falla de voltaje DC
+#define PC_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)          // Alarma por falla de sistema
+#define PC_DI_YA2   ((s3Tables.digTbl[0][0] & 0x0002)  >> 1)  // Alarma de intruso
+#define PC_DI_GZA   ((s3Tables.digTbl[0][0] & 0x0004)  >> 2)  // Alarma por gas tóxico
+#define PC_DI_EAAC  ((s3Tables.digTbl[0][0] & 0x0008)  >> 3)  // Alarma por falla de voltaje AC
+#define PC_DI_EADC  ((s3Tables.digTbl[0][0] & 0x00016) >> 4)  // Alarma por falla de voltaje DC
 
 #define PC_DO_HS1   (s3Tables.digTbl[1][0] & 0x0001)        // Encendido/apagado de bombeo
 
@@ -276,15 +280,15 @@
 #define VS_AI_TT   s3Tables.anTbl[0][1]      // Transmisor de temperatura
 #define VS_AI_AT   s3Tables.anTbl[0][2]      // Transmisor de interface (CONTROLOTRÓN)
 
-#define VS_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)        // Alarma por falla de sistema
-#define VS_DI_YA2   (s3Tables.digTbl[0][0] & 0x0002) >> 1   // Alarma de intruso
-#define VS_DI_EAAC  (s3Tables.digTbl[0][0] & 0x0004) >> 2   // Alarma por falla de voltaje AC
-#define VS_DI_EADC  (s3Tables.digTbl[0][0] & 0x0008) >> 3   // Alarma por falla de voltaje DC
+#define VS_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)          // Alarma por falla de sistema
+#define VS_DI_YA2   ((s3Tables.digTbl[0][0] & 0x0002) >> 1)   // Alarma de intruso
+#define VS_DI_EAAC  ((s3Tables.digTbl[0][0] & 0x0004) >> 2)   // Alarma por falla de voltaje AC
+#define VS_DI_EADC  ((s3Tables.digTbl[0][0] & 0x0008) >> 3)   // Alarma por falla de voltaje DC
 
-#define VS_DI_XI   (s3Tables.digTbl[0][1] & 0x0001)         // Detector de herramienta de limpieza (Raspatubo)
-#define VS_DI_LNL  (s3Tables.digTbl[0][1] & 0x0002) >> 1    // Bajo nivel de nitrógeno
-#define VS_DI_OV   (s3Tables.digTbl[0][1] & 0x0004) >> 2    // Válvula completamente abierta
-#define VS_DI_CV   (s3Tables.digTbl[0][1] & 0x0008) >> 3    // Válvula completamente cerrada
+#define VS_DI_XI   (s3Tables.digTbl[0][1] & 0x0001)           // Detector de herramienta de limpieza (Raspatubo)
+#define VS_DI_LNL  ((s3Tables.digTbl[0][1] & 0x0002) >> 1)    // Bajo nivel de nitrógeno
+#define VS_DI_OV   ((s3Tables.digTbl[0][1] & 0x0004) >> 2)    // Válvula completamente abierta
+#define VS_DI_CV   ((s3Tables.digTbl[0][1] & 0x0008) >> 3)    // Válvula completamente cerrada
 
 #define VS_DO_XV   (s3Tables.digTbl[1][0] & 0x0001)         // Cierre rápido de la válvula
 

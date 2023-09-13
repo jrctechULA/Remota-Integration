@@ -26,6 +26,8 @@
         "utility": "c",
         "esp_task_wdt.h": "c",
         "mbcontroller.h": "c",
-        "mb_dictionaries.h": "c"
+        "mb_dictionaries.h": "c",
+        "timers.h": "c",
+        "freertosconfig.h": "c"
     }
 }
