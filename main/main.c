@@ -177,13 +177,21 @@ void app_main(void)
     modbus_slave_init();
 
     if (CFG_OP_MODE == 1) {             //Creates the timer for GAS Volume accumulation, only in Gas Lift OP Mode
-        xGL_Timer = xTimerCreate("GL_Timer",
+        xGLAcc_Timer = xTimerCreate("GL_Timer",
                              pdMS_TO_TICKS(CFG_GL_TMR_INTERVAL),
                              pdTRUE,
                              NULL,
                              GLTimerCallBack);
-        xTimerStart(xGL_Timer, pdMS_TO_TICKS(1000));
+        xTimerStart(xGLAcc_Timer, pdMS_TO_TICKS(1000));
         ESP_LOGI(TAG, "Gas accumulator timer started with interval %u ms", CFG_GL_TMR_INTERVAL);
+
+        xGLPID_Timer = xTimerCreate("GL_PIDTimer",
+                             pdMS_TO_TICKS(CFG_GL_PID_TMR_INTERVAL),
+                             pdTRUE,
+                             NULL,
+                             GLTimerPIDCallBack);
+        xTimerStart(xGLPID_Timer, pdMS_TO_TICKS(1000));
+        ESP_LOGI(TAG, "Gas PID timer started with interval %u ms", 10);
     }
 
     // Starts modbus master stack and modbus master poll task only if required
@@ -238,16 +246,21 @@ void app_main(void)
                     ESP_LOGW(TAG, "Modbus master poll task resumed...");
                 }
             }
-            if (xGL_Timer != NULL){
-                if (xTimerIsTimerActive(xGL_Timer) == pdFALSE){
-                    xTimerStart(xGL_Timer, 0);
+            if (xGLAcc_Timer != NULL){
+                if (xTimerIsTimerActive(xGLAcc_Timer) == pdFALSE){
+                    xTimerStart(xGLAcc_Timer, 0);
                     ESP_LOGW(TAG, "Gas accumulation timer has been started...");
+                }      
+            }
+
+            if (xGLPID_Timer != NULL){
+                if (xTimerIsTimerActive(xGLPID_Timer) == pdFALSE){
+                    xTimerStart(xGLPID_Timer, 0);
+                    ESP_LOGW(TAG, "Gas PID timer has been started...");
                     ESP_LOGW(TAG, "Run mode is activated");
-                }
-                    
+                }      
             }
             
-
             print_spi_stats();
             ESP_LOGD(TAG, "SPI exchange task time: %u us", SPI_EXCHANGE_TIME);
             ESP_LOGD(TAG, "SPI cycle task time: %u us\n", SPI_CYCLE_TIME);
@@ -315,10 +328,16 @@ void app_main(void)
                 ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", GL_DI_EADC);
 
                 ESP_LOGI(TAG, "Variables analógicas de salida escritas al módulo de E/S:");
-                ESP_LOGI(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%u\n", GL_AO_FCV);
+                ESP_LOGI(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%.3f\n", PID_u.floatValue);
 
                 ESP_LOGI(TAG, "Volumen diario de gas inyectado:");
                 ESP_LOGI(TAG, "Volumen total diario de gas\t\t(FQ): \t\t%.3f\n", GL_FQ24);
+
+                ESP_LOGD(TAG, "GL PID e: %f", PID_e);
+                ESP_LOGD(TAG, "GL PID up: %f", PID_up);
+                ESP_LOGD(TAG, "GL PID ui: %f", PID_ui);
+                ESP_LOGD(TAG, "GL PID ud: %f", PID_ud);
+                ESP_LOGD(TAG, "GL PID u: %f\n", PID_u.floatValue); 
                 break;
             case 2:
                 /* Pozos de Bombeo Mecánico */
@@ -546,10 +565,17 @@ void app_main(void)
                     ESP_LOGW(TAG, "Modbus master poll task has been suspended");
                 }
             }
-            if (xGL_Timer != NULL){
-                if (xTimerIsTimerActive(xGL_Timer) == pdTRUE){
-                    xTimerStop(xGL_Timer, 0);
+            if (xGLAcc_Timer != NULL){
+                if (xTimerIsTimerActive(xGLAcc_Timer) == pdTRUE){
+                    xTimerStop(xGLAcc_Timer, 0);
                     ESP_LOGW(TAG, "Gas accumulation timer has been stopped");
+                }
+            }
+
+            if (xGLPID_Timer != NULL){
+                if (xTimerIsTimerActive(xGLPID_Timer) == pdTRUE){
+                    xTimerStop(xGLPID_Timer, 0);
+                    ESP_LOGW(TAG, "Gas PID timer has been stopped");
                     ESP_LOGW(TAG, "Program mode is activated. Waiting for setup...");
                 }
             }
@@ -1433,7 +1459,7 @@ esp_err_t create_modbus_map(void){
         reg_area.type = MB_PARAM_HOLDING;
         reg_area.start_offset = MB_REG_HOLDING_START_AREA0; //0
         reg_area.address = (void*)&s3Tables.anTbl[1][0];
-        reg_area.size = 1 << 1;
+        reg_area.size = 2 * 4;
         ESP_ERROR_CHECK(mbc_slave_set_descriptor(reg_area));
 
         //Scaling Factors Table: (Slopes: m)
@@ -1979,7 +2005,7 @@ void mb_event_check_task(void *pvParameters){
 
                         uint8_t writeFlag = 1;      // Write data to nvs by default
 
-                        if (CFG_RUN_PGM && ((index > 0 ) && (index < 45)))  // Prohibited zone in Run mode
+                        if (CFG_RUN_PGM && ((index > 0 ) && (index < 41)))  // Prohibited zone in Run mode
                             writeFlag = 0;
 
                         switch (index)
@@ -2050,6 +2076,28 @@ void mb_event_check_task(void *pvParameters){
 
                         case 22:        //CFG_GL_FILTER_ALPHA
                             if (CFG_GL_FILTER_ALPHA > 1000)
+                                writeFlag = 0;  // Don't accept invalid values
+                            break;
+
+                        case 23:        //CFG_GL_PID_TMR_INTERVAL
+                            if (CFG_GL_PID_TMR_INTERVAL < 10)
+                                writeFlag = 0;  // Don't accept invalid values
+                            else
+                                resetRequired = 1;
+                            break;
+
+                        case 46:        //CFG_GL_PID_CP
+                            if (CFG_GL_PID_CP > 1)
+                                writeFlag = 0;  // Don't accept invalid values
+                            break;
+
+                        case 47:        //CFG_GL_PID_CI
+                            if (CFG_GL_PID_CI > 1)
+                                writeFlag = 0;  // Don't accept invalid values
+                            break;
+
+                        case 48:        //CFG_GL_PID_CD
+                            if (CFG_GL_PID_CD > 1)
                                 writeFlag = 0;  // Don't accept invalid values
                             break;
 
@@ -2892,6 +2940,34 @@ void GLTimerCallBack(TimerHandle_t pxTimer){
         GL_FQ24 = 0;
         msCounter24 = 0;
     }
+}
+
+void GLTimerPIDCallBack(TimerHandle_t pxTimer){
+    time2 = esp_timer_get_time();
+    s3Tables.auxTbl[0][49] = (time2 - time1)/1000;
+    
+    // Error calculation
+    PID_e = CFG_GL_PID_SP - GL_AI_FTGL;
+
+    // Proportional Gain (Gp)
+    PID_up = CFG_GL_PID_KP * PID_e;
+    
+    // Integral Gain (Gi)
+    PID_ui = lastPID_ui + (float)CFG_GL_PID_KI * PID_e * ((float)CFG_GL_PID_TMR_INTERVAL / 1000);
+    
+    lastPID_ui = PID_ui; // Keep track of last ui
+
+    // Derivative Control (with N Filter) (Gd)
+    PID_ud = ( PID_ud + CFG_GL_PID_KD * CFG_GL_PID_N * (PID_e - lastPID_e) ) / ( 1 + CFG_GL_PID_N * ((float)CFG_GL_PID_TMR_INTERVAL / 1000));
+    
+    lastPID_e = PID_e; // Keep track of last error vaue
+
+    // PID output:
+    PID_u.floatValue = CFG_GL_PID_CP * PID_up + CFG_GL_PID_CI * PID_ui + CFG_GL_PID_CD * PID_ud;
+    GL_AO_FCV_L = PID_u.uint16Values.low;
+    GL_AO_FCV_H = PID_u.uint16Values.high;    
+
+    time1 = esp_timer_get_time();
 }
 
 esp_err_t init_nvs(void){

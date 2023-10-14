@@ -54,7 +54,8 @@
 #define GL_AI_TTGL s3Tables.anTbl[0][4]      // Temperatura de gas al pozo
 #define GL_AI_FTGL s3Tables.anTbl[0][5]      // Flujo de gas al pozo
 
-#define GL_AO_FCV  s3Tables.anTbl[1][0]      // Flujo de gas al pozo
+#define GL_AO_FCV_L  s3Tables.anTbl[1][0]    // Flujo de gas al pozo (Registro bajo)
+#define GL_AO_FCV_H  s3Tables.anTbl[1][1]    // Flujo de gas al pozo (Registro alto)
 
 #define GL_DI_YA1   (s3Tables.digTbl[0][0] & 0x0001)          // Alarma por falla de sistema
 #define GL_DI_YA2   ((s3Tables.digTbl[0][0] & 0x0002)  >> 1)  // Alarma de intruso

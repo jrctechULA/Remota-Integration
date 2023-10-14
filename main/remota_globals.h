@@ -43,10 +43,21 @@
 #define CFG_MB_SLAVE_BAUDRATE_H s3Tables.configTbl[0][17]   //Modbus Slave RTU Baudrate High Register   //40034
 #define CFG_MB_SLAVE_BAUDRATE_L s3Tables.configTbl[0][18]   //Modbus Slave RTU Baudrate Low Register    //40035
 
-#define CFG_SLAVE_IP &s3Tables.configTbl[0][19]             //IP address for slave field device (Modbus TCP)
+#define CFG_SLAVE_IP &s3Tables.configTbl[0][19]             //IP address for slave field device (Modbus TCP) 40036 & 40037
 
-#define CFG_GL_TMR_INTERVAL s3Tables.configTbl[0][21]  // Intervalo del timer para el acumulador de volumen diario de gas   40036
-#define CFG_GL_FILTER_ALPHA s3Tables.configTbl[0][22]  // Constante de tiempo para el filtro de primer orden aplicado a la medición de flujo  40037
+#define CFG_GL_TMR_INTERVAL s3Tables.configTbl[0][21]  // Intervalo del timer para el acumulador de volumen diario de gas   40038
+#define CFG_GL_FILTER_ALPHA s3Tables.configTbl[0][22]  // Constante de tiempo para el filtro de primer orden aplicado a la medición de flujo  40039
+
+#define CFG_GL_PID_TMR_INTERVAL s3Tables.configTbl[0][23]  // Intervalo del timer para el controlador PID   40040
+#define CFG_GL_PID_SP (s3Tables.configTbl[0][41])
+#define CFG_GL_PID_KP ((float)s3Tables.configTbl[0][42] / 1000)  //1
+#define CFG_GL_PID_CP (s3Tables.configTbl[0][46])               //1
+#define CFG_GL_PID_KI ((float)s3Tables.configTbl[0][43] / 1000) //0.08
+#define CFG_GL_PID_CI (s3Tables.configTbl[0][47])               //1
+#define CFG_GL_PID_KD ((float)s3Tables.configTbl[0][44] / 1000) //0.5
+#define CFG_GL_PID_CD (s3Tables.configTbl[0][48])               //1
+#define CFG_GL_PID_N  ((float)s3Tables.configTbl[0][45] / 1000) //3
+
 
 #define MS24H 86400000                                 // Milisegundos en 24H
 
@@ -108,7 +119,8 @@ TaskHandle_t xSPITaskHandle = NULL;
 TaskHandle_t xScalingTaskHandle = NULL;
 TaskHandle_t xMBEventCheckTaskHandle = NULL;
 TaskHandle_t xMBMasterPollTaskHandle = NULL;
-TimerHandle_t xGL_Timer = NULL;
+TimerHandle_t xGLAcc_Timer = NULL;
+TimerHandle_t xGLPID_Timer = NULL;
 
 //The semaphore indicating the slave is ready to receive stuff.
 QueueHandle_t rdySem;
@@ -132,6 +144,27 @@ uint8_t resetRequired = 0;
 uint32_t msCounter24 = 0;
 float last_ftgl = 0;
 float ftglFiltered = 0;
+
+float PID_e = 0;
+float PID_up = 0;
+float PID_ui = 0;
+float lastPID_ui = 0;
+float PID_ud = 0;
+
+union FloatSplit {
+    	float floatValue;
+    	struct {
+        	uint16_t low;  // Registro bajo
+        	uint16_t high; // Registro alto
+    	} uint16Values;
+};
+
+union FloatSplit PID_u;
+
+//float PID_u = 0;
+float lastPID_e = 0;
+uint32_t time1 = 0;
+uint32_t time2 = 0;
 
 //____________________________________________________________________________________________________
 // Function prototypes:
@@ -185,7 +218,8 @@ void mb_event_check_task(void *pvParameters);
 
 void mb_master_poll_task(void *pvParameters);
 
-void GLTimerCallBack(TimerHandle_t pxTimer);
+void GLTimerCallBack(TimerHandle_t pxTimer); 
+void GLTimerPIDCallBack(TimerHandle_t pxTimer);
 
 esp_err_t init_nvs(void);
 esp_err_t read_nvs(char *key, uint16_t *value);
