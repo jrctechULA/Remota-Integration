@@ -130,6 +130,7 @@ uint16_t cycleTimeStart, cycleTimeFinish;
 
 //Modbus globals:
 mb_register_area_descriptor_t reg_area; // Modbus register area descriptor structure
+char slaveIP_str[16] = {'\0'};
 
 // Statically allocate and initialize the spinlock
 //static portMUX_TYPE mb_spinlock = portMUX_INITIALIZER_UNLOCKED;
@@ -138,6 +139,7 @@ nvs_handle_t app_nvs_handle;
 
 uint8_t modbus_slave_initialized = 0;
 uint8_t modbus_master_initialized = 0;
+uint8_t modbus_master_connected = 0;
 uint8_t mb_master_task_created = 0;
 uint8_t resetRequired = 0;
 
@@ -179,27 +181,6 @@ esp_err_t tablesInit(varTables_t *tables,
                      uint8_t digSize,       //Tamaño de tablas digitales
                      uint8_t configSize,    //Tamaño de tablas de configuración
                      uint8_t auxSize);      //Tamaño de tablas auxiliares
-
-esp_err_t tablePrint(uint16_t *table, uint8_t size);
-esp_err_t tablePrintFloat(float *table, uint8_t size);
-esp_err_t tablesUnload(varTables_t *tables);
-esp_err_t readAnalogTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t readDigitalTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t readConfigTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t readAuxTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t readAllTables(varTables_t *Tables);
-esp_err_t readAnalogData(varTables_t *Tables, uint8_t tbl, uint8_t dataIndex);
-esp_err_t readDigitalData(varTables_t *Tables, uint8_t tbl, uint8_t dataIndex);
-esp_err_t readConfigData(varTables_t *Tables, uint8_t tbl, uint8_t dataIndex);
-esp_err_t readAuxData(varTables_t *Tables, uint8_t tbl, uint8_t dataIndex);
-esp_err_t writeAnalogTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t writeDigitalTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t writeConfigTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t writeAuxTable(varTables_t *Tables, uint8_t tbl);
-esp_err_t writeAnalogData(uint8_t tbl, uint8_t dataIndex, uint16_t payload);
-esp_err_t writeDigitalData(uint8_t tbl, uint8_t dataIndex, uint16_t payload);
-esp_err_t writeConfigData(uint8_t tbl, uint8_t dataIndex, uint16_t payload);
-esp_err_t writeAuxData(uint8_t tbl, uint8_t dataIndex, uint16_t payload);
 
 esp_err_t exchangeData(varTables_t *Tables);
 
