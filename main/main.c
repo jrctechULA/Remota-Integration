@@ -4,9 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "nvs.h"
 #include "nvs_flash.h"
+#include "esp_vfs.h"
+#include "esp_vfs_fat.h"
 
 #include "esp_heap_caps.h"
 
@@ -63,6 +66,15 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
 //____________________________________________________________________________________________________
 void app_main(void)
 {
+    esp_err_t res = init_FAT_fileSystem();
+    if ( res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init FAT File System! (%s)", esp_err_to_name(res));
+        return;
+    }
+    else {
+        ESP_LOGI(TAG, "FAT File System Initialized (%s)", esp_err_to_name(res));
+    }
+
     gpio_reset_pin(ledYellow);
     gpio_set_direction(ledYellow, GPIO_MODE_OUTPUT);
     gpio_set_level(ledYellow,0);
@@ -226,6 +238,16 @@ void app_main(void)
 
     //int counter = 0;
 
+    res = ds1307_init();
+    if ( res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init RTC DS1307 (%s)", esp_err_to_name(res));
+        return;
+    }
+
+    // Generate a test input for sys_log.log and print its content:
+            system_logInput("Remota systems have been succesfully initialized");
+            print_systemLog();
+
     while (1){ 
         if (CFG_RUN_PGM && (resetRequired == 0)){  //Run mode selected:
             //Resume tasks if they're in suspended state:
@@ -264,6 +286,13 @@ void app_main(void)
             print_spi_stats();
             ESP_LOGD(TAG, "SPI exchange task time: %u us", SPI_EXCHANGE_TIME);
             ESP_LOGD(TAG, "SPI cycle task time: %u us\n", SPI_CYCLE_TIME);
+
+            
+            struct tm actualTime;
+            ds1307_get_time(&dev, &actualTime);
+            char time_str[20];
+            strftime(time_str, sizeof(time_str), "%d-%m-%Y %H:%M:%S", &actualTime);
+            ESP_LOGW(TAG, "%s", time_str);
 
             switch (CFG_OP_MODE)    //Perform task according to operation mode selected
             {
@@ -1652,7 +1681,74 @@ void mb_event_check_task(void *pvParameters){
                         uint8_t index = reg_info.mb_offset - 66;
                         char key[5] = {'\0'};
                         sprintf(key, "A%u", index);
-                        write_nvs(key, s3Tables.auxTbl[0][index]);
+                        switch (index)
+                        {
+                        case 43:  // AUX_RTC_YEAR
+                            if (AUX_RTC_YEAR >= 1900) {
+                                write_nvs(key, s3Tables.auxTbl[0][index]);
+                                if (setTime_ds1307() != ESP_OK)
+                                    ESP_LOGE(TAG, "Failed to set RTC time");
+                            }
+                            else{
+                                read_nvs(key, &s3Tables.auxTbl[0][index]);
+                            }
+                            break;
+                        case 44:  // AUX_RTC_MONTH
+                            if ((AUX_RTC_MONTH >= 1) && (AUX_RTC_MONTH <= 12)){
+                                write_nvs(key, s3Tables.auxTbl[0][index]);
+                                if (setTime_ds1307() != ESP_OK)
+                                    ESP_LOGE(TAG, "Failed to set RTC time");
+                            }
+                            else{
+                                read_nvs(key, &s3Tables.auxTbl[0][index]);
+                            }
+                            break;
+                        case 45:  // AUX_RTC_DAY
+                            if ((AUX_RTC_DAY >= 1) && (AUX_RTC_DAY <= 31)){
+                                write_nvs(key, s3Tables.auxTbl[0][index]);
+                                if (setTime_ds1307() != ESP_OK)
+                                    ESP_LOGE(TAG, "Failed to set RTC time");
+                            }
+                            else{
+                                read_nvs(key, &s3Tables.auxTbl[0][index]);
+                            }
+                            break;
+                        case 46:  // AUX_RTC_HOUR
+                            if (AUX_RTC_HOUR <= 23) {
+                                write_nvs(key, s3Tables.auxTbl[0][index]);
+                                if (setTime_ds1307() != ESP_OK)
+                                    ESP_LOGE(TAG, "Failed to set RTC time");
+                            }
+                            else{
+                                read_nvs(key, &s3Tables.auxTbl[0][index]);
+                            }
+                            break;
+                        case 47:  // AUX_RTC_MINUTE
+                            if (AUX_RTC_MINUTE <= 59) {
+                                write_nvs(key, s3Tables.auxTbl[0][index]);
+                                if (setTime_ds1307() != ESP_OK)
+                                    ESP_LOGE(TAG, "Failed to set RTC time");
+                            }
+                            else{
+                                read_nvs(key, &s3Tables.auxTbl[0][index]);
+                            }
+                            break;
+                        case 48:  // AUX_RTC_SECOND
+                            if (AUX_RTC_SECOND <= 59) {
+                                write_nvs(key, s3Tables.auxTbl[0][index]);
+                                if (setTime_ds1307() != ESP_OK)
+                                    ESP_LOGE(TAG, "Failed to set RTC time");
+                            }
+                            else{
+                                read_nvs(key, &s3Tables.auxTbl[0][index]);
+                            }
+                            break;
+                        
+                        default:
+                            break;
+                        }
+                        
+
                     }
 
                     else if((reg_info.mb_offset >= 116) && (reg_info.mb_offset < 148)){
@@ -2672,5 +2768,160 @@ esp_err_t set_configDefaults_nvs(void){
     write_nvs("C49", 0x0004);    //40066
 
     ESP_LOGW(TAG, "Default values has been written to flash");
+    return ESP_OK;
+}
+
+esp_err_t init_FAT_fileSystem(void){
+    // Mount path for the partition
+    const char *base_path = "/spiflash";
+
+    // Handle of the wear levelling library instance
+    static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
+
+    // Register and mount FAT partition:
+    const esp_vfs_fat_mount_config_t mount_config = {
+            .max_files = 4,
+            .format_if_mount_failed = true,
+            .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
+    };
+    esp_err_t err;
+    err = esp_vfs_fat_spiflash_mount_rw_wl(base_path, "storage", &mount_config, &s_wl_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
+        return err;
+    }
+
+    //Get info about FAT partition:
+    uint64_t total = 0, free = 0;
+    err = esp_vfs_fat_info(base_path, &total, &free);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to get partition info (%s)", esp_err_to_name(err));
+        return err;
+    }
+    else {
+        ESP_LOGI(TAG, "Partition size: Total %llu, free %llu", total, free);
+    }
+    return ESP_OK;
+}
+
+esp_err_t ds1307_init(void){
+
+    ESP_ERROR_CHECK(i2cdev_init());
+    
+    memset(&dev, 0, sizeof(i2c_dev_t));
+    esp_err_t res;
+    
+    dev.cfg.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    dev.cfg.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    
+    res = ds1307_init_desc(&dev, 0, 39, 40);
+    return res;
+}
+
+esp_err_t setTime_ds1307(void){
+    // setup datetime: 2023-10-20 20:30:10
+    struct tm actualTime = {
+        .tm_year = AUX_RTC_YEAR - 1900, //since 1900 (2023 - 1900)
+        .tm_mon  = AUX_RTC_MONTH - 1,  // 0-based
+        .tm_mday = AUX_RTC_DAY,
+        .tm_hour = AUX_RTC_HOUR,
+        .tm_min  = AUX_RTC_MINUTE,
+        .tm_sec  = AUX_RTC_SECOND
+        //Agregar wday!!
+    };
+    esp_err_t res = ds1307_set_time(&dev, &actualTime);
+    return res;
+}
+
+esp_err_t system_logInput(char* message){
+    // Get the actual timestamp:
+    struct tm actualTime;
+    ds1307_get_time(&dev, &actualTime);
+    char time_str[20];
+    strftime(time_str, sizeof(time_str), "%d-%m-%Y %H:%M:%S", &actualTime);
+    
+    ESP_LOGV(TAG, "Creating a backup file from sys_log.log to sys_log.bak");
+    FILE *file, *f_backup;
+    char character;
+
+    // Open sys_log.log for reading, if doesn't exists, create it:
+    file = fopen("/spiflash/sys_log.log", "rb");
+    if (file == NULL) {
+        ESP_LOGV(TAG, "File does not exist, creating...");
+        file = fopen("/spiflash/sys_log.log", "wb");
+        if (file == NULL) {
+            ESP_LOGV(TAG, "Failed to create file");
+            return ESP_FAIL;
+        }
+        fclose(file);
+        file = fopen("/spiflash/sys_log.log", "rb");
+    }
+
+    // Open sys_log.bak for writing:
+    f_backup = fopen("/spiflash/sys_log.bak", "wb");
+    if (f_backup == NULL) {
+        ESP_LOGE(TAG, "Failed to open file for writing");
+        fclose(file);
+        return ESP_FAIL;
+    }
+
+    // Read the content of sys_log.log and copy to sys_log.bak:
+    while (1) {
+        character = fgetc(file);
+        if (feof(file)) {
+            break; // End of original file
+        }
+        fputc(character, f_backup);
+    }
+    fclose(file);
+    fclose(f_backup);
+
+    //Append timestamp and message to sys_log.bak:
+    ESP_LOGV(TAG, "Append info to the file sys_log.bak");
+    file = fopen("/spiflash/sys_log.bak", "a");
+    if (file == NULL) {
+        ESP_LOGE(TAG, "Failed to open file for append");
+        return ESP_FAIL;
+    }
+    
+    fprintf(file, "(%s) - %s\n", time_str, message);
+    fclose(file);
+
+    //Remove original file:
+    ESP_LOGV(TAG, "Removing original file sys_log.log");
+    if (remove("/spiflash/sys_log.log") == 0)
+        ESP_LOGV(TAG, "Original file has been removed");
+    else
+        ESP_LOGE(TAG, "Failed to remove original file");
+
+    //Rename sys_log.bak file:
+    ESP_LOGV(TAG, "Rename the file sys_log.bak to sys_log.log");
+    if (rename("/spiflash/sys_log.bak", "/spiflash/sys_log.log") == 0)
+        ESP_LOGV(TAG, "File renamed succesfully");
+    else {
+        ESP_LOGE(TAG, "Failed to remove original file");
+        return ESP_FAIL;
+    }
+        
+
+    return ESP_OK;
+}
+
+esp_err_t print_systemLog(void){
+    printf("\nSystem log (sys_log.log file):\n\n");
+    //Open a text file for reading
+    FILE *f;
+    f = fopen("/spiflash/sys_log.log", "r");
+    if (f == NULL) {
+        ESP_LOGE(TAG, "Failed to open file for reading");
+        return ESP_FAIL;
+    }
+    char line[100];
+    while (fgets(line, sizeof(line), f)){
+        printf("%s", line);
+    }
+    printf("\n");
+    fclose(f);
+
     return ESP_OK;
 }

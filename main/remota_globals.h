@@ -8,6 +8,7 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "mbcontroller.h"
+#include "ds1307.h"
 
 //____________________________________________________________________________________________________
 // Macro definitions:
@@ -57,6 +58,13 @@
 #define CFG_GL_PID_KD ((float)s3Tables.configTbl[0][44] / 1000) //0.5
 #define CFG_GL_PID_CD (s3Tables.configTbl[0][48])               //1
 #define CFG_GL_PID_N  ((float)s3Tables.configTbl[0][45] / 1000) //3
+
+#define AUX_RTC_YEAR    s3Tables.auxTbl[0][43]
+#define AUX_RTC_MONTH   s3Tables.auxTbl[0][44]
+#define AUX_RTC_DAY     s3Tables.auxTbl[0][45]
+#define AUX_RTC_HOUR    s3Tables.auxTbl[0][46]
+#define AUX_RTC_MINUTE  s3Tables.auxTbl[0][47]
+#define AUX_RTC_SECOND  s3Tables.auxTbl[0][48]
 
 
 #define MS24H 86400000                                 // Milisegundos en 24H
@@ -168,6 +176,8 @@ float lastPID_e = 0;
 uint32_t time1 = 0;
 uint32_t time2 = 0;
 
+i2c_dev_t dev;
+
 //____________________________________________________________________________________________________
 // Function prototypes:
 //____________________________________________________________________________________________________
@@ -208,5 +218,11 @@ esp_err_t write_nvs(char *key, uint16_t value);
 esp_err_t create_table_nvs(char *c, uint8_t tableSize);
 esp_err_t create_float_table_nvs(char *c, uint8_t tableSize);
 esp_err_t set_configDefaults_nvs(void);
+
+esp_err_t init_FAT_fileSystem(void);
+esp_err_t ds1307_init(void);
+esp_err_t setTime_ds1307(void);
+esp_err_t system_logInput(char* message);
+esp_err_t print_systemLog(void);
 
 #endif
