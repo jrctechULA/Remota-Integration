@@ -9,6 +9,8 @@ ________________________________________________________________________________
 //____________________________________________________________________________________________________
 // Include section:
 //____________________________________________________________________________________________________
+#include "esp_wifi.h"
+#include "esp_mac.h"
 #include "esp_netif.h"
 #include "esp_eth.h"
 #include "esp_event.h"
@@ -60,21 +62,37 @@ ________________________________________________________________________________
 #define ETHERNET_SPI_CLOCK_MHZ 16
 #define ETHERNET_SPI_HOST SPI3_HOST
 
+/* #define WIFI_SSID "Fibranet 991820"
+#define WIFI_PASSWORD "wtj5T3hm"
+#define WIFI_AP_SSID "Remota A2SCP"
+#define WIFI_AP_PASSWORD "123456789" */
+
 //____________________________________________________________________________________________________
 // Function prototypes:
 //____________________________________________________________________________________________________
 void ethernetInit(void);
 void eth_event_handler(void *arg, esp_event_base_t event_base,
                               int32_t event_id, void *event_data);
+void wifi_event_handler(void *arg, esp_event_base_t event_base, 
+                              int32_t event_id, void *event_data);
 void got_ip_event_handler(void *arg, esp_event_base_t event_base,
                                  int32_t event_id, void *event_data);
 void set_ip_eth0(void);
+void set_wifi_STA_ip(void);
+void set_wifi_AP_ip(void);
+
+esp_err_t WiFi_Begin_STA(void);
+esp_err_t WiFi_Begin_STA_AP(void);
+esp_err_t WiFi_Begin_AP(void);
+esp_err_t WiFi_init(void);
 
 //____________________________________________________________________________________________________
 // Global declarations:
 //____________________________________________________________________________________________________
 static const char *ethTAG = "Ethernet";
 esp_netif_t *eth_netif = NULL;
+esp_netif_t *wifi_STA_netif = NULL;
+esp_netif_t *wifi_AP_netif = NULL;
 
 //____________________________________________________________________________________________________
 // Function implementations:
@@ -122,6 +140,56 @@ void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(ethTAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(ethTAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
     ESP_LOGI(ethTAG, "~~~~~~~~~~~");
+}
+
+void wifi_event_handler(void *arg, esp_event_base_t event_base,
+                                int32_t event_id, void *event_data)
+{
+    switch (event_id)
+    {
+    case WIFI_EVENT_STA_START:
+        WiFi_Status = WIFI_STARTED;
+        ESP_LOGI(wifiTAG, "Connecting to AP...");
+        esp_wifi_connect();
+        break;
+    case WIFI_EVENT_STA_CONNECTED:
+        WiFi_Status = WIFI_CONNECTED;
+        ESP_LOGI(wifiTAG, "Connected to AP");
+        break;
+    case IP_EVENT_STA_GOT_IP:
+        WiFi_Status = WIFI_GOT_IP;
+        ESP_LOGI(wifiTAG, "Got IP address");
+        break;
+    case WIFI_EVENT_STA_DISCONNECTED:
+        WiFi_Status = WIFI_DISCONNECTED;
+        ESP_LOGI(wifiTAG, "Disconnected from AP");
+        esp_wifi_connect();
+        break;
+
+    case WIFI_EVENT_AP_START:
+        WiFi_Status = WIFI_AP_STARTED;
+        ESP_LOGI(wifiTAG, "WIFI_EVENT_AP_START");
+        break;
+    case WIFI_EVENT_AP_STADISCONNECTED:
+    {
+        ESP_LOGI(wifiTAG, "WIFI_EVENT_AP_STADISCONNECTED");
+        wifi_event_ap_stadisconnected_t *event = (wifi_event_ap_stadisconnected_t *)event_data;
+        ESP_LOGI(wifiTAG, "station " MACSTR " leave, AID=%d",
+                 MAC2STR(event->mac), event->aid);
+    }
+    break;
+    case WIFI_EVENT_AP_STACONNECTED:
+    {
+        ESP_LOGI(wifiTAG, "WIFI_EVENT_AP_STACONNECTED");
+        wifi_event_ap_staconnected_t *event = (wifi_event_ap_staconnected_t *)event_data;
+        ESP_LOGI(wifiTAG, "station " MACSTR " join, AID=%d",
+                 MAC2STR(event->mac), event->aid);
+    }
+    break;
+
+    default:
+        break;
+    }
 }
 
 void ethernetInit() {
@@ -350,17 +418,339 @@ void set_ip_eth0(void){
     esp_netif_set_ip_info(eth_netif, &ip_info);
 }
 
+void set_wifi_STA_ip(void){
+    esp_netif_ip_info_t ip_info;
+
+    char IP2_str[16] = {'\0'};
+    uint8_t IP2[4] = {0};
+    IP2[0] = *CFG_IP2 >> 8;
+    IP2[1] = *CFG_IP2 & 0x00FF;
+    IP2[2] = *(CFG_IP2+1) >> 8;
+    IP2[3] = *(CFG_IP2+1) & 0x00FF;
+    sprintf(IP2_str, "%hhu.%hhu.%hhu.%hhu", IP2[0], IP2[1], IP2[2], IP2[3]);
+
+    char GW_str[16] = {'\0'};
+    uint8_t GW[4] = {0};
+    GW[0] = *CFG_GW >> 8;
+    GW[1] = *CFG_GW & 0x00FF;
+    GW[2] = *(CFG_GW+1) >> 8;
+    GW[3] = *(CFG_GW+1) & 0x00FF;
+    sprintf(GW_str, "%hhu.%hhu.%hhu.%hhu", GW[0], GW[1], GW[2], GW[3]);
+
+    esp_netif_str_to_ip4(IP2_str, &ip_info.ip);          //Set IP address
+    esp_netif_str_to_ip4(GW_str, &ip_info.gw);          //Set Gateway
+    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
+
+    //esp_netif_dhcpc_stop(wifi_STA_netif);
+    esp_netif_set_ip_info(wifi_STA_netif, &ip_info);
+}
+
+void set_wifi_AP_ip(void){
+    esp_netif_ip_info_t ip_info;
+
+    char IP3_str[16] = {'\0'};
+    uint8_t IP3[4] = {0};
+    IP3[0] = *CFG_IP3 >> 8;
+    IP3[1] = *CFG_IP3 & 0x00FF;
+    IP3[2] = *(CFG_IP3+1) >> 8;
+    IP3[3] = *(CFG_IP3+1) & 0x00FF;
+    sprintf(IP3_str, "%hhu.%hhu.%hhu.%hhu", IP3[0], IP3[1], IP3[2], IP3[3]);
+
+    esp_netif_str_to_ip4(IP3_str, &ip_info.ip);          //Set IP address
+    esp_netif_str_to_ip4(IP3_str, &ip_info.gw);          //Set Gateway
+    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
+
+    esp_netif_set_ip_info(wifi_AP_netif, &ip_info);
+}
+
 void set_DHCP(void){
     if (CFG_DHCP){
         esp_netif_dhcpc_start(eth_netif);
+        if ((CFG_WIFI_MODE == 0) || (CFG_WIFI_MODE == 2))
+            esp_netif_dhcpc_start(wifi_STA_netif);
         ESP_LOGI(TAG, "DHCP Started");
     }
 
     else{
         esp_netif_dhcpc_stop(eth_netif);
+        if ((CFG_WIFI_MODE == 0) || (CFG_WIFI_MODE == 2))
+            esp_netif_dhcpc_stop(wifi_STA_netif);
         ESP_LOGI(TAG, "DHCP Stopped");
         set_ip_eth0();
+        if ((CFG_WIFI_MODE == 0) || (CFG_WIFI_MODE == 2))
+            set_wifi_STA_ip();
         ESP_LOGI(TAG, "Static IP config applied");
     }
 }
 
+esp_err_t WiFi_Begin_STA(void)
+{
+    nvs_flash_init();
+
+    // Stage 1. Wi-Fi/LwIP Init Phase:
+
+     esp_netif_init();
+     esp_event_loop_create_default();
+     wifi_STA_netif= esp_netif_create_default_wifi_sta();
+
+     if (!CFG_DHCP){     //Static IP Configuration:
+        esp_netif_dhcpc_stop(wifi_STA_netif);
+        set_wifi_STA_ip();
+    }
+
+     wifi_init_config_t wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
+     esp_wifi_init(&wifi_init_cfg);
+
+    #ifdef WIFI_USE_RAM_STORAGE
+    esp_wifi_set_storage(WIFI_STORAGE_RAM);
+    #endif
+
+    // Stage 2. Wi-Fi Configuration Phase:
+    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL);
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL);
+
+    wifi_sta_config_t wifi_sta_cfg = {};
+
+    strcpy((char *)wifi_sta_cfg.ssid, WIFI_SSID);
+    strcpy((char *)wifi_sta_cfg.password, WIFI_PASSWORD);
+
+    wifi_config_t wifi_cfg = {.sta = wifi_sta_cfg};
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_cfg));
+
+    #ifdef WIFI_STA_CUSTOM_MAC
+    uint8_t customMac[] = JRC_WIFI_STA_CUSTOM_MAC;
+    esp_wifi_set_mac(WIFI_IF_STA, customMac);
+    #endif
+
+    // Stage 3. Wi-Fi Start Phase:
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    return ESP_OK;
+}
+
+esp_err_t WiFi_Begin_AP(void)
+{
+    nvs_flash_init();
+
+    // Stage 1. Wi-Fi/LwIP Init Phase:
+
+    esp_netif_init();
+    esp_event_loop_create_default();
+    wifi_AP_netif = esp_netif_create_default_wifi_ap();
+
+    esp_netif_dhcps_stop(wifi_AP_netif);
+    set_wifi_AP_ip();
+    esp_netif_dhcps_start(wifi_AP_netif);
+
+    wifi_init_config_t wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
+    esp_wifi_init(&wifi_init_cfg);
+
+    #ifdef JRC_WIFI_USE_RAM_STORAGE
+    esp_wifi_set_storage(WIFI_STORAGE_RAM);
+    #endif
+
+    // Stage 2. Wi-Fi Configuration Phase:
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
+    wifi_config_t wifi_ap_config = {
+        .ap = {
+            .ssid_len = strlen(WIFI_AP_SSID),
+            .channel = 1,
+            .max_connection = 4,
+            .authmode = WIFI_AUTH_WPA2_PSK,
+            .pmf_cfg = {
+                .required = false,
+            },
+        },
+    };
+
+    strcpy((char *)wifi_ap_config.ap.ssid, WIFI_AP_SSID);
+    strcpy((char *)wifi_ap_config.ap.password, WIFI_AP_PASSWORD);
+
+    if (strlen(WIFI_AP_PASSWORD) == 0)
+    {
+        wifi_ap_config.ap.authmode = WIFI_AUTH_OPEN;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config));
+
+    #ifdef JRC_WIFI_AP_CUSTOM_MAC
+    uint8_t customMac[] = JRC_WIFI_AP_CUSTOM_MAC;
+    esp_wifi_set_mac(WIFI_IF_AP, customMac);
+    #endif
+
+    // Stage 3. Wi-Fi Start Phase:
+    ESP_ERROR_CHECK(esp_wifi_start());
+    
+    return ESP_OK;
+}
+
+esp_err_t WiFi_Begin_STA_AP(void)
+{
+    nvs_flash_init();
+
+    // Stage 1. Wi-Fi/LwIP Init Phase:
+
+    esp_netif_init();
+    esp_event_loop_create_default();
+    wifi_STA_netif = esp_netif_create_default_wifi_sta();
+    wifi_AP_netif = esp_netif_create_default_wifi_ap();
+
+    if (!CFG_DHCP){     //Static IP Configuration:
+        esp_netif_dhcpc_stop(wifi_STA_netif);
+        set_wifi_STA_ip();
+    }
+
+    esp_netif_dhcps_stop(wifi_AP_netif);
+    set_wifi_AP_ip();
+    esp_netif_dhcps_start(wifi_AP_netif);
+
+    wifi_init_config_t wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
+    esp_wifi_init(&wifi_init_cfg);
+
+    #ifdef JRC_WIFI_USE_RAM_STORAGE
+    esp_wifi_set_storage(WIFI_STORAGE_RAM);
+    #endif
+
+    // Stage 2. Wi-Fi Configuration Phase:
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL);
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL);
+
+    wifi_sta_config_t wifi_sta_cfg = {};
+
+    strcpy((char *)wifi_sta_cfg.ssid, WIFI_SSID);
+    strcpy((char *)wifi_sta_cfg.password, WIFI_PASSWORD);
+
+    printf("\n%s\n%s\n", wifi_sta_cfg.ssid, wifi_sta_cfg.password);
+
+    wifi_ap_config_t wifi_ap_cfg = {
+        .ssid_len = strlen(WIFI_AP_SSID),
+        .channel = 0,
+        .max_connection = 4,
+        .authmode = WIFI_AUTH_WPA2_PSK,
+        .pmf_cfg = {
+            .required = false,
+        },
+    };
+
+    strcpy((char *)wifi_ap_cfg.ssid, WIFI_AP_SSID);
+    strcpy((char *)wifi_ap_cfg.password, WIFI_AP_PASSWORD);
+
+    printf("\n%s\n%s\n", wifi_ap_cfg.ssid, wifi_ap_cfg.password);
+
+    if (strlen(WIFI_AP_PASSWORD) == 0)
+    {
+        wifi_ap_cfg.authmode = WIFI_AUTH_OPEN;
+    }
+
+    wifi_config_t wifi_sta_config = {.sta = wifi_sta_cfg};
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_sta_config));
+    
+    #ifdef JRC_WIFI_STA_CUSTOM_MAC
+    uint8_t customMacSta[] = JRC_WIFI_STA_CUSTOM_MAC;
+    esp_wifi_set_mac(WIFI_IF_STA, customMacSta);
+    #endif
+
+    wifi_config_t wifi_ap_config = {.ap = wifi_ap_cfg};
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config));
+
+    #ifdef JRC_WIFI_AP_CUSTOM_MAC
+    uint8_t customMacAP[] = JRC_WIFI_AP_CUSTOM_MAC;
+    esp_wifi_set_mac(WIFI_IF_AP, customMacAP);
+    #endif
+
+    // Stage 3. Wi-Fi Start Phase:
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    return ESP_OK;
+}
+
+esp_err_t WiFi_init(void)
+{
+    // WiFi Initialization:
+    if (CFG_WIFI_MODE < 3) {
+        FILE *file;
+        file = fopen("/spiflash/wifi.cfg", "rb"); 
+        if (file == NULL) {
+            ESP_LOGE(TAG, "Failed to open wifi.cfg");
+            return ESP_FAIL;
+        }
+
+        char line[25]={'\0'};
+        uint8_t i = 0;
+
+        fgets(line, sizeof(line), file);
+        i = 0;
+        while (1)
+        {
+            if ((line[i] == '\r') || (line[i] == '\n') || (line[i] == '\0'))
+                break;
+            WIFI_SSID[i] = line[i];
+            i++;
+        }
+        
+        fgets(line, sizeof(line), file);
+        i = 0;
+        while (1)
+        {
+            if ((line[i] == '\r') || (line[i] == '\n') || (line[i] == '\0'))
+                break;
+            WIFI_PASSWORD[i] = line[i];
+            i++;
+        }
+
+        fgets(line, sizeof(line), file);
+        i = 0;
+        while (1)
+        {
+            if ((line[i] == '\r') || (line[i] == '\n') || (line[i] == '\0'))
+                break;
+            WIFI_AP_SSID[i] = line[i];
+            i++;
+        }
+
+        fgets(line, sizeof(line), file);
+        i = 0;
+        while (1)
+        {
+            if ((line[i] == '\r') || (line[i] == '\n') || (line[i] == '\0'))
+                break;
+            WIFI_AP_PASSWORD[i] = line[i];
+            i++;
+        }
+
+        fclose(file);
+
+        //printf("\n%s\n%s\n%s\n%s\n", WIFI_SSID, WIFI_PASSWORD, WIFI_AP_SSID, WIFI_AP_PASSWORD);
+    }
+    
+    esp_err_t res = ESP_OK;
+
+    switch (CFG_WIFI_MODE)
+    {
+    case 0:             // Init WiFi as station mode
+        ESP_LOGI(wifiTAG, "WiFi initialization in station mode");
+        res = WiFi_Begin_STA();
+        break;
+    case 1:             // Init WiFi as AP mode
+        ESP_LOGI(wifiTAG, "WiFi initialization in AP mode");
+        res = WiFi_Begin_AP();
+        break;
+    case 2:             // Init WiFi as station + AP mode
+        ESP_LOGI(wifiTAG, "WiFi initialization in station + AP mode");
+        res = WiFi_Begin_STA_AP();
+        break;
+    case 3:
+        ESP_LOGW(wifiTAG, "WiFi mode is set to 3 --> (No WiFi mode)");
+        break;
+    
+    default:
+        break;
+    }
+
+    return res;
+}

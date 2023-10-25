@@ -75,6 +75,14 @@ void app_main(void)
         ESP_LOGI(TAG, "FAT File System Initialized (%s)", esp_err_to_name(res));
     }
 
+    res = ds1307_init();
+    if ( res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init RTC DS1307 (%s)", esp_err_to_name(res));
+        return;
+    }
+
+    system_logInput("Remota system powered up...");
+
     gpio_reset_pin(ledYellow);
     gpio_set_direction(ledYellow, GPIO_MODE_OUTPUT);
     gpio_set_level(ledYellow,0);
@@ -186,6 +194,16 @@ void app_main(void)
       
     ethernetInit();
 
+    // WiFi Initialization:
+    res = WiFi_init();
+    if ( res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init WiFi Module (%s)", esp_err_to_name(res));
+        return;
+    }
+    else {
+        ESP_LOGI(TAG, "WiFi module succesfully initialized (%s)", esp_err_to_name(res));
+    }
+
     modbus_slave_init();
 
     if (CFG_OP_MODE == 1) {             //Creates the timer for GAS Volume accumulation, only in Gas Lift OP Mode
@@ -236,17 +254,10 @@ void app_main(void)
     esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
     esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
 
-    //int counter = 0;
-
-    res = ds1307_init();
-    if ( res != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to init RTC DS1307 (%s)", esp_err_to_name(res));
-        return;
-    }
 
     // Generate a test input for sys_log.log and print its content:
-            system_logInput("Remota systems have been succesfully initialized");
-            print_systemLog();
+    system_logInput("Remota systems have been succesfully initialized");
+    print_systemLog();
 
     while (1){ 
         if (CFG_RUN_PGM && (resetRequired == 0)){  //Run mode selected:
@@ -290,9 +301,18 @@ void app_main(void)
             
             struct tm actualTime;
             ds1307_get_time(&dev, &actualTime);
-            char time_str[20];
-            strftime(time_str, sizeof(time_str), "%d-%m-%Y %H:%M:%S", &actualTime);
+            char time_str[45];
+            //strftime(time_str, sizeof(time_str), "%d-%m-%Y %H:%M:%S", &actualTime);
+            strftime(time_str, sizeof(time_str), "%A, %d %B %Y %H:%M:%S", &actualTime);
             ESP_LOGW(TAG, "%s", time_str);
+            
+            AUX_RTC_YEAR = actualTime.tm_year + 1900;
+            AUX_RTC_MONTH = actualTime.tm_mon + 1;
+            AUX_RTC_DAY = actualTime.tm_mday;
+            AUX_RTC_HOUR = actualTime.tm_hour;
+            AUX_RTC_MINUTE = actualTime.tm_min;
+            AUX_RTC_SECOND = actualTime.tm_sec;
+
 
             switch (CFG_OP_MODE)    //Perform task according to operation mode selected
             {
@@ -1631,6 +1651,13 @@ void mb_event_check_task(void *pvParameters){
                                 resetRequired = 1;
                             break;
 
+                        case 24:        // CFG_WIFI_MODE
+                            if (CFG_WIFI_MODE > 3)
+                                writeFlag = 0;
+                            else
+                                resetRequired = 1;
+                            break; 
+
                         case 46:        //CFG_GL_PID_CP
                             if (CFG_GL_PID_CP > 1)
                                 writeFlag = 0;  // Don't accept invalid values
@@ -1685,62 +1712,38 @@ void mb_event_check_task(void *pvParameters){
                         {
                         case 43:  // AUX_RTC_YEAR
                             if (AUX_RTC_YEAR >= 1900) {
-                                write_nvs(key, s3Tables.auxTbl[0][index]);
                                 if (setTime_ds1307() != ESP_OK)
                                     ESP_LOGE(TAG, "Failed to set RTC time");
-                            }
-                            else{
-                                read_nvs(key, &s3Tables.auxTbl[0][index]);
                             }
                             break;
                         case 44:  // AUX_RTC_MONTH
                             if ((AUX_RTC_MONTH >= 1) && (AUX_RTC_MONTH <= 12)){
-                                write_nvs(key, s3Tables.auxTbl[0][index]);
                                 if (setTime_ds1307() != ESP_OK)
                                     ESP_LOGE(TAG, "Failed to set RTC time");
-                            }
-                            else{
-                                read_nvs(key, &s3Tables.auxTbl[0][index]);
                             }
                             break;
                         case 45:  // AUX_RTC_DAY
                             if ((AUX_RTC_DAY >= 1) && (AUX_RTC_DAY <= 31)){
-                                write_nvs(key, s3Tables.auxTbl[0][index]);
                                 if (setTime_ds1307() != ESP_OK)
                                     ESP_LOGE(TAG, "Failed to set RTC time");
-                            }
-                            else{
-                                read_nvs(key, &s3Tables.auxTbl[0][index]);
                             }
                             break;
                         case 46:  // AUX_RTC_HOUR
                             if (AUX_RTC_HOUR <= 23) {
-                                write_nvs(key, s3Tables.auxTbl[0][index]);
                                 if (setTime_ds1307() != ESP_OK)
                                     ESP_LOGE(TAG, "Failed to set RTC time");
-                            }
-                            else{
-                                read_nvs(key, &s3Tables.auxTbl[0][index]);
                             }
                             break;
                         case 47:  // AUX_RTC_MINUTE
                             if (AUX_RTC_MINUTE <= 59) {
-                                write_nvs(key, s3Tables.auxTbl[0][index]);
                                 if (setTime_ds1307() != ESP_OK)
                                     ESP_LOGE(TAG, "Failed to set RTC time");
-                            }
-                            else{
-                                read_nvs(key, &s3Tables.auxTbl[0][index]);
                             }
                             break;
                         case 48:  // AUX_RTC_SECOND
                             if (AUX_RTC_SECOND <= 59) {
-                                write_nvs(key, s3Tables.auxTbl[0][index]);
                                 if (setTime_ds1307() != ESP_OK)
                                     ESP_LOGE(TAG, "Failed to set RTC time");
-                            }
-                            else{
-                                read_nvs(key, &s3Tables.auxTbl[0][index]);
                             }
                             break;
                         
@@ -2781,7 +2784,7 @@ esp_err_t init_FAT_fileSystem(void){
     // Register and mount FAT partition:
     const esp_vfs_fat_mount_config_t mount_config = {
             .max_files = 4,
-            .format_if_mount_failed = true,
+            .format_if_mount_failed = false,
             .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
     };
     esp_err_t err;
@@ -2815,25 +2818,36 @@ esp_err_t ds1307_init(void){
     dev.cfg.scl_pullup_en = GPIO_PULLUP_ENABLE;
     
     res = ds1307_init_desc(&dev, 0, 39, 40);
+    
+    // Read info from RTC:
+    struct tm actualTime;
+    ds1307_get_time(&dev, &actualTime);
+    //Write info back to RTC: (This is for ensure that RTC is running after init...)
+    ds1307_set_time(&dev, &actualTime);
     return res;
 }
 
 esp_err_t setTime_ds1307(void){
     // setup datetime: 2023-10-20 20:30:10
+    uint16_t d, m, y;
+    d = AUX_RTC_DAY;
+    m = AUX_RTC_MONTH;
+    y = AUX_RTC_YEAR;
+
     struct tm actualTime = {
         .tm_year = AUX_RTC_YEAR - 1900, //since 1900 (2023 - 1900)
         .tm_mon  = AUX_RTC_MONTH - 1,  // 0-based
         .tm_mday = AUX_RTC_DAY,
         .tm_hour = AUX_RTC_HOUR,
         .tm_min  = AUX_RTC_MINUTE,
-        .tm_sec  = AUX_RTC_SECOND
-        //Agregar wday!!
+        .tm_sec  = AUX_RTC_SECOND,
+        .tm_wday =  (d+=m<3?y--:y-2,23*m/9+d+4+y/4-y/100+y/400)%7
     };
     esp_err_t res = ds1307_set_time(&dev, &actualTime);
     return res;
 }
 
-esp_err_t system_logInput(char* message){
+esp_err_t system_logInput(const char* message){
     // Get the actual timestamp:
     struct tm actualTime;
     ds1307_get_time(&dev, &actualTime);

@@ -59,6 +59,8 @@
 #define CFG_GL_PID_CD (s3Tables.configTbl[0][48])               //1
 #define CFG_GL_PID_N  ((float)s3Tables.configTbl[0][45] / 1000) //3
 
+#define CFG_WIFI_MODE (s3Tables.configTbl[0][24])               //2
+
 #define AUX_RTC_YEAR    s3Tables.auxTbl[0][43]
 #define AUX_RTC_MONTH   s3Tables.auxTbl[0][44]
 #define AUX_RTC_DAY     s3Tables.auxTbl[0][45]
@@ -84,6 +86,13 @@
 #define STR(fieldname) ((const char*)( fieldname ))
 #define OPTS(min_val, max_val, step_val) { .opt1 = min_val, .opt2 = max_val, .opt3 = step_val }
 
+#define WIFI_NOT_STARTED    0
+#define WIFI_CONNECTED      1
+#define WIFI_STARTED        2
+#define WIFI_GOT_IP         3
+#define WIFI_DISCONNECTED   4
+#define WIFI_AP_STARTED     5
+
 //_______________________________________________________________________________________________________________
 //____________________________________________________________________________________________________
 // Global declarations:
@@ -92,6 +101,7 @@
 static const char *TAG = "Remota-Main";
 static const char *mbSlaveTAG = "Modbus Slave";
 static const char *mbEventChkTAG = "Modbus Event Check";
+static const char *wifiTAG = "WiFi Module";
 
 DMA_ATTR WORD_ALIGNED_ATTR uint16_t* recvbuf;
 DMA_ATTR WORD_ALIGNED_ATTR uint16_t* sendbuf;
@@ -178,6 +188,15 @@ uint32_t time2 = 0;
 
 i2c_dev_t dev;
 
+typedef int WiFi_Status_t;
+WiFi_Status_t WiFi_Status = WIFI_NOT_STARTED;
+
+char WIFI_SSID[20] = {'\0'};
+char WIFI_PASSWORD[20] = {'\0'};
+char WIFI_AP_SSID[20] = {'\0'};
+char WIFI_AP_PASSWORD[20] = {'\0'};
+
+
 //____________________________________________________________________________________________________
 // Function prototypes:
 //____________________________________________________________________________________________________
@@ -222,7 +241,7 @@ esp_err_t set_configDefaults_nvs(void);
 esp_err_t init_FAT_fileSystem(void);
 esp_err_t ds1307_init(void);
 esp_err_t setTime_ds1307(void);
-esp_err_t system_logInput(char* message);
+esp_err_t system_logInput(const char* message);
 esp_err_t print_systemLog(void);
 
 #endif
