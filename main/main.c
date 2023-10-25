@@ -66,244 +66,26 @@ static void IRAM_ATTR gpio_handshake_isr_handler(void* arg)
 //____________________________________________________________________________________________________
 void app_main(void)
 {
-    esp_err_t res = init_FAT_fileSystem();
-    if ( res != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to init FAT File System! (%s)", esp_err_to_name(res));
+    esp_err_t res = Remota_init();
+    if (res != ESP_OK)
         return;
-    }
-    else {
-        ESP_LOGI(TAG, "FAT File System Initialized (%s)", esp_err_to_name(res));
-    }
 
-    res = ds1307_init();
-    if ( res != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to init RTC DS1307 (%s)", esp_err_to_name(res));
-        return;
-    }
-
-    system_logInput("Remota system powered up...");
-
-    gpio_reset_pin(ledYellow);
-    gpio_set_direction(ledYellow, GPIO_MODE_OUTPUT);
-    gpio_set_level(ledYellow,0);
-
-    gpio_reset_pin(ledGreen);
-    gpio_set_direction(ledGreen, GPIO_MODE_OUTPUT);
-    gpio_set_level(ledGreen,0);
-
-    //Set up handshake line interrupt.
-    //GPIO config for the handshake line.
-    gpio_config_t io_conf={
-        .intr_type=GPIO_INTR_POSEDGE,
-        .mode=GPIO_MODE_INPUT,
-        .pull_up_en=1,
-        .pin_bit_mask=(1<<GPIO_HANDSHAKE)
-    };
-    gpio_config(&io_conf);
-    gpio_install_isr_service(0);
-    gpio_set_intr_type(GPIO_HANDSHAKE, GPIO_INTR_POSEDGE);
-    gpio_isr_handler_add(GPIO_HANDSHAKE, gpio_handshake_isr_handler, NULL);
-
-    ESP_LOGI(TAG, "Tamaño del objeto: %i bytes\n", sizeof(s3Tables));  //Imprime el tamaño de la estructura, el cual es constante independientemente del número y tamaño de los vectores
-    //tablesInit(&s3Tables, 3,2,10,3);
-    tablesInit(&s3Tables, 2,    //Tablas de variables analógicas
-                          2,    //Tablas de variables digitales
-                          1,    //Tablas de configuración
-                          1,    //Tablas auxiliares
-                          16,   //Tamaño de tablas analógicas
-                          2,    //Tamaño de tablas digitales
-                          50,   //Tamaño de tablas de configuración
-                          50);  //Tamaño de tablas auxiliares
-
-    //nvs_flash_erase();
-
-    ESP_ERROR_CHECK(init_nvs());
-
-    //ESP_ERROR_CHECK(set_configDefaults_nvs());
-        
-    //Create tables in the nvs namespace (if they don't exist):
-    create_table_nvs("C", s3Tables.configSize);     //For config table
-    create_table_nvs("A", s3Tables.auxSize);        //For aux table
-    create_float_table_nvs("SF", s3Tables.anSize);        //For Scaling factors table
-    create_float_table_nvs("SO", s3Tables.anSize);        //For Scaling offsets table
-
-    for (int i = 0; i < s3Tables.configSize; i++)
-    {
-        char key[5] = {'\0'};
-        sprintf(key, "C%i", i);
-        read_nvs(key, &s3Tables.configTbl[0][i]);
-    }
-
-    for (int i = 0; i < s3Tables.auxSize; i++)
-    {
-        char key[5] = {'\0'};
-        sprintf(key, "A%i", i);
-        read_nvs(key, &s3Tables.auxTbl[0][i]);
-    }
-
-    for (int i = 0; i < s3Tables.anSize; i++)
-    {
-        char key[6] = {'\0'};
-        sprintf(key, "SF%i", i);
-        size_t size = sizeof(float);
-        esp_err_t r = nvs_get_blob(app_nvs_handle, key, &s3Tables.scalingFactor[i], &size);
-        ESP_ERROR_CHECK(r);
-    }
-
-    for (int i = 0; i < s3Tables.anSize; i++)
-    {
-        char key[6] = {'\0'};
-        sprintf(key, "SO%i", i);
-        size_t size = sizeof(float);
-        esp_err_t r = nvs_get_blob(app_nvs_handle, key, &s3Tables.scalingOffset[i], &size);
-        ESP_ERROR_CHECK(r);
-    }
-    
-
-    sendbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
-    recvbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
-
-    //Create the semaphore.
-    rdySem = xSemaphoreCreateBinary();
-    spiTaskSem = xSemaphoreCreateBinary();
-    
-    xTaskCreatePinnedToCore(spi_task,
-                "spi_task",
-                STACK_SIZE,
-                NULL,
-                (UBaseType_t) 2U,       //Priority Level 2
-                &xSPITaskHandle,
-                1);          
-    xSemaphoreGive(spiTaskSem);
-
-    xTaskCreatePinnedToCore(scaling_task,
-                "scaling_task",
-                STACK_SIZE,
-                NULL,
-                (UBaseType_t) 0U,       //Priority Level 0
-                &xScalingTaskHandle,
-                0);
-
-    xTaskCreatePinnedToCore(mb_event_check_task,
-                "mb_event_check_task",
-                STACK_SIZE,
-                NULL,
-                (UBaseType_t) 2U,       //Priority Level 2
-                &xMBEventCheckTaskHandle,
-                1);
-      
-    ethernetInit();
-
-    // WiFi Initialization:
-    res = WiFi_init();
-    if ( res != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to init WiFi Module (%s)", esp_err_to_name(res));
-        return;
-    }
-    else {
-        ESP_LOGI(TAG, "WiFi module succesfully initialized (%s)", esp_err_to_name(res));
-    }
-
-    modbus_slave_init();
-
-    if (CFG_OP_MODE == 1) {             //Creates the timer for GAS Volume accumulation, only in Gas Lift OP Mode
-        xGLAcc_Timer = xTimerCreate("GL_Timer",
-                             pdMS_TO_TICKS(CFG_GL_TMR_INTERVAL),
-                             pdTRUE,
-                             NULL,
-                             GLTimerCallBack);
-        xTimerStart(xGLAcc_Timer, pdMS_TO_TICKS(1000));
-        ESP_LOGI(TAG, "Gas accumulator timer started with interval %u ms", CFG_GL_TMR_INTERVAL);
-
-        xGLPID_Timer = xTimerCreate("GL_PIDTimer",
-                             pdMS_TO_TICKS(CFG_GL_PID_TMR_INTERVAL),
-                             pdTRUE,
-                             NULL,
-                             GLTimerPIDCallBack);
-        xTimerStart(xGLPID_Timer, pdMS_TO_TICKS(1000));
-        ESP_LOGI(TAG, "Gas PID timer started with interval %u ms", 10);
-    }
-
-    // Starts modbus master stack and modbus master poll task only if required
-    if ((CFG_OP_MODE == 2) || (CFG_OP_MODE == 3) || (CFG_OP_MODE == 4)){
-        //Create and start modbus master poll task:
-        xTaskCreatePinnedToCore(mb_master_poll_task,
-                "mb_master_poll_task",
-                STACK_SIZE,
-                NULL,
-                (UBaseType_t) 1U,       //Priority Level 1
-                &xMBMasterPollTaskHandle,
-                1);
-
-        mb_master_task_created = 1;
-        
-        //Init modbus master stack
-        esp_err_t r = modbus_master_init();
-        if (r != ESP_OK){
-            ESP_LOGE(TAG, "Modbus master initialization error %x", r);
-        }
-        else {
-            modbus_master_connected = 1;
-            ESP_LOGI(TAG, "Modbus master initialized");
-        }
-    }
-
-    
-
-    esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
-    esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
-    esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
-
-
-    // Generate a test input for sys_log.log and print its content:
     system_logInput("Remota systems have been succesfully initialized");
     print_systemLog();
 
-    while (1){ 
+    while (1){          // *** Program main loop ***
         if (CFG_RUN_PGM && (resetRequired == 0)){  //Run mode selected:
             //Resume tasks if they're in suspended state:
-            if (eTaskGetState(xSPITaskHandle) == eSuspended){
-                while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
-                        continue;
-                vTaskResume(xSPITaskHandle);
-                xSemaphoreGive(spiTaskSem);
-                ESP_LOGW(TAG, "SPI task resumed...");
-            }
-            if (eTaskGetState(xScalingTaskHandle) == eSuspended){
-                vTaskResume(xScalingTaskHandle);
-                ESP_LOGW(TAG, "Scaling task resumed...");
-            }
-            if (mb_master_task_created){
-                if (eTaskGetState(xMBMasterPollTaskHandle) == eSuspended){
-                    vTaskResume(xMBMasterPollTaskHandle);
-                    ESP_LOGW(TAG, "Modbus master poll task resumed...");
-                }
-            }
-            if (xGLAcc_Timer != NULL){
-                if (xTimerIsTimerActive(xGLAcc_Timer) == pdFALSE){
-                    xTimerStart(xGLAcc_Timer, 0);
-                    ESP_LOGW(TAG, "Gas accumulation timer has been started...");
-                }      
-            }
+            resume_tasks();
 
-            if (xGLPID_Timer != NULL){
-                if (xTimerIsTimerActive(xGLPID_Timer) == pdFALSE){
-                    xTimerStart(xGLPID_Timer, 0);
-                    ESP_LOGW(TAG, "Gas PID timer has been started...");
-                    ESP_LOGW(TAG, "Run mode is activated");
-                }      
-            }
-            
             print_spi_stats();
-            ESP_LOGD(TAG, "SPI exchange task time: %u us", SPI_EXCHANGE_TIME);
-            ESP_LOGD(TAG, "SPI cycle task time: %u us\n", SPI_CYCLE_TIME);
 
-            
             struct tm actualTime;
             ds1307_get_time(&dev, &actualTime);
             char time_str[45];
             //strftime(time_str, sizeof(time_str), "%d-%m-%Y %H:%M:%S", &actualTime);
-            strftime(time_str, sizeof(time_str), "%A, %d %B %Y %H:%M:%S", &actualTime);
+            //strftime(time_str, sizeof(time_str), "%c", &actualTime);
+            strftime(time_str, sizeof(time_str), "%A, %B %d %Y - %I:%M:%S %p", &actualTime);
             ESP_LOGW(TAG, "%s", time_str);
             
             AUX_RTC_YEAR = actualTime.tm_year + 1900;
@@ -312,7 +94,6 @@ void app_main(void)
             AUX_RTC_HOUR = actualTime.tm_hour;
             AUX_RTC_MINUTE = actualTime.tm_min;
             AUX_RTC_SECOND = actualTime.tm_sec;
-
 
             switch (CFG_OP_MODE)    //Perform task according to operation mode selected
             {
@@ -611,38 +392,8 @@ void app_main(void)
         }
         else{  //Program mode selected
             // Suspend tasks if they're in run state:
-            if (eTaskGetState(xSPITaskHandle) != eSuspended){
-                while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
-                        continue;
-                vTaskSuspend(xSPITaskHandle);
-                xSemaphoreGive(spiTaskSem);
-                ESP_LOGW(TAG, "SPI task has been suspended");
-            }
-            if (eTaskGetState(xScalingTaskHandle) != eSuspended){
-                vTaskSuspend(xScalingTaskHandle);
-                ESP_LOGW(TAG, "Scaling task has been suspended");
-            }
-            if (mb_master_task_created){
-                if (eTaskGetState(xMBMasterPollTaskHandle) != eSuspended){
-                    vTaskSuspend(xMBMasterPollTaskHandle);
-                    ESP_LOGW(TAG, "Modbus master poll task has been suspended");
-                }
-            }
-            if (xGLAcc_Timer != NULL){
-                if (xTimerIsTimerActive(xGLAcc_Timer) == pdTRUE){
-                    xTimerStop(xGLAcc_Timer, 0);
-                    ESP_LOGW(TAG, "Gas accumulation timer has been stopped");
-                }
-            }
-
-            if (xGLPID_Timer != NULL){
-                if (xTimerIsTimerActive(xGLPID_Timer) == pdTRUE){
-                    xTimerStop(xGLPID_Timer, 0);
-                    ESP_LOGW(TAG, "Gas PID timer has been stopped");
-                    ESP_LOGW(TAG, "Program mode is activated. Waiting for setup...");
-                }
-            }
-
+            stop_tasks();
+            
             //Perform configuration tasks here!
             
         }
@@ -824,12 +575,14 @@ void spi_transaction_counter(){
     }
 }
 
-void print_spi_stats(){
-    //static const char TAG[] = "SPI stats";
-    esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
+void print_spi_stats(){ 
+    //esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
     uint32_t trans_count = ((uint32_t)(SPI_TRANSACTION_COUNT_H) << 16) | SPI_TRANSACTION_COUNT_L;
     ESP_LOGD(TAG, "Transaction count: %lu Error count: %u Eror ratio: %.2f%%", 
         trans_count, SPI_ERROR_COUNT, (float)SPI_ERROR_COUNT * 100/trans_count);
+
+    ESP_LOGD(TAG, "SPI exchange task time: %u us", SPI_EXCHANGE_TIME);
+    ESP_LOGD(TAG, "SPI cycle task time: %u us\n", SPI_CYCLE_TIME);
 }
 
 // freeRTOS tasks implementations:
@@ -2717,32 +2470,33 @@ esp_err_t set_configDefaults_nvs(void){
     create_float_table_nvs("SF", s3Tables.anSize);        //For Scaling factors table
     create_float_table_nvs("SO", s3Tables.anSize);        //For Scaling offsets table
 
-    write_nvs("C0",  0x0001);    //40017
-    write_nvs("C1",  0x0000);    //40018
-    write_nvs("C2",  0xAC10);    //40019
-    write_nvs("C3",  0x0064);    //40020
-    write_nvs("C4",  0x0000);    //40021
-    write_nvs("C5",  0x0000);    //40022
-    write_nvs("C6",  0x0000);    //40023
-    write_nvs("C7",  0x0000);    //40024
-    write_nvs("C8",  0x0000);    //40025
-    write_nvs("C9",  0x0000);    //40026
-    write_nvs("C10", 0xAC10);    //40027
-    write_nvs("C11", 0x0001);    //40028
-    write_nvs("C12", 0x0000);    //40029
-    write_nvs("C13", 0x0000);    //40030
-    write_nvs("C14", 0x0001);    //40031
-    write_nvs("C15", 0xC200);    //40032
-    write_nvs("C16", 0x0001);    //40033
-    write_nvs("C17", 0x0001);    //40034
-    write_nvs("C18", 0xF400);    //40035
-    write_nvs("C19", 0xAC10);    //40036
-    write_nvs("C20", 0x0004);    //40037
-    write_nvs("C21", 0x000A);    //40038
-    write_nvs("C22", 0x000A);    //40039
+    //                          Modbus addr:   Register name:              Default value:
+    write_nvs("C0",  0x0001);    //40017        CFG_RUN_PGM                 (RUN)
+    write_nvs("C1",  0x0000);    //40018        CFG_OP_MODE                 (Natural flow)
+    write_nvs("C2",  0xAC10);    //40019        CFG_IP0                     (172.16)
+    write_nvs("C3",  0x0064);    //40020        CFG_IP0                     (.0.100)
+    write_nvs("C4",  0x0000);    //40021        CFG_IP1
+    write_nvs("C5",  0x0000);    //40022        CFG_IP1
+    write_nvs("C6",  0xAC10);    //40023        CFG_IP2                     (172.16)
+    write_nvs("C7",  0x002B);    //40024        CFG_IP2                     (.0.43)
+    write_nvs("C8",  0xC0A8);    //40025        CFG_IP3                     (192.168)
+    write_nvs("C9",  0x0001);    //40026        CFG_IP3                     (.0.1)
+    write_nvs("C10", 0xAC10);    //40027        CFG_GW                      (172.16)
+    write_nvs("C11", 0x0001);    //40028        CFG_GW                      (.0.1)
+    write_nvs("C12", 0x0000);    //40029        CFG_DHCP                    (Static IP)
+    write_nvs("C13", 0x0001);    //40030        CFG_MB_MASTER_INTERFACE     (TCP interface)
+    write_nvs("C14", 0x0001);    //40031        CFG_MB_MASTER_BAUDRATE_H    (115200)
+    write_nvs("C15", 0xC200);    //40032        CFG_MB_MASTER_BAUDRATE_L
+    write_nvs("C16", 0x0001);    //40033        CFG_MB_SLAVE_INTERFACE      (TCP Interface)
+    write_nvs("C17", 0x0001);    //40034        CFG_MB_SLAVE_BAUDRATE_H     (128000)
+    write_nvs("C18", 0xF400);    //40035        CFG_MB_SLAVE_BAUDRATE_L
+    write_nvs("C19", 0xAC10);    //40036        CFG_SLAVE_IP                (172.16)
+    write_nvs("C20", 0x0004);    //40037        CFG_SLAVE_IP                (.0.4)
+    write_nvs("C21", 0x000A);    //40038        CFG_GL_TMR_INTERVAL         (10ms)
+    write_nvs("C22", 0x000A);    //40039        CFG_GL_FILTER_ALPHA         (10ms * 1000)
+    write_nvs("C23", 0x000A);    //40040        CFG_GL_PID_TMR_INTERVAL     (10ms)
+    write_nvs("C24", 0x0002);    //40041        CFG_WIFI_MODE               (2 --> STA + AP)
 
-    write_nvs("C23", 0x0000);    //40040
-    write_nvs("C24", 0x0000);    //40041
     write_nvs("C25", 0x0000);    //40042
     write_nvs("C26", 0x0000);    //40043
     write_nvs("C27", 0x0000);    //40044
@@ -2759,16 +2513,16 @@ esp_err_t set_configDefaults_nvs(void){
     write_nvs("C38", 0x0000);    //40055
     write_nvs("C39", 0x0000);    //40056
     write_nvs("C40", 0x0000);    //40057
-    write_nvs("C41", 0x0000);    //40058
-    write_nvs("C42", 0x0000);    //40059
-    write_nvs("C43", 0x0000);    //40060
-    write_nvs("C44", 0x0000);    //40061
-    write_nvs("C45", 0x0000);    //40062
-    write_nvs("C46", 0x0000);    //40063
-    write_nvs("C47", 0x0000);    //40064
-    write_nvs("C48", 0x0000);    //40065
 
-    write_nvs("C49", 0x0004);    //40066
+    write_nvs("C41", 0x09C4);    //40058        CFG_GL_PID_SP               (2500 MPCGD)
+    write_nvs("C42", 0x1388);    //40059        CFG_GL_PID_KP               (5 * 1000)
+    write_nvs("C43", 0x09C4);    //40060        CFG_GL_PID_KI               (2.5 * 1000)
+    write_nvs("C44", 0x07D0);    //40061        CFG_GL_PID_KD               (2 * 1000)
+    write_nvs("C45", 0x03E8);    //40062        CFG_GL_PID_N                (1 * 1000)
+    write_nvs("C46", 0x0001);    //40063        CFG_GL_PID_CP               (1)
+    write_nvs("C47", 0x0001);    //40064        CFG_GL_PID_CI               (1)
+    write_nvs("C48", 0x0001);    //40065        CFG_GL_PID_CD               (1)
+    write_nvs("C49", 0x0004);    //40066        CFG_REMOTA_LOG_LEVEL        (4 --> Debug)
 
     ESP_LOGW(TAG, "Default values has been written to flash");
     return ESP_OK;
@@ -2851,8 +2605,9 @@ esp_err_t system_logInput(const char* message){
     // Get the actual timestamp:
     struct tm actualTime;
     ds1307_get_time(&dev, &actualTime);
-    char time_str[20];
-    strftime(time_str, sizeof(time_str), "%d-%m-%Y %H:%M:%S", &actualTime);
+    char time_str[25];
+    //strftime(time_str, sizeof(time_str), "%d-%m-%Y %H:%M:%S", &actualTime);
+    strftime(time_str, sizeof(time_str), "%c", &actualTime);
     
     ESP_LOGV(TAG, "Creating a backup file from sys_log.log to sys_log.bak");
     FILE *file, *f_backup;
@@ -2938,4 +2693,280 @@ esp_err_t print_systemLog(void){
     fclose(f);
 
     return ESP_OK;
+}
+
+esp_err_t Remota_init(void){
+
+    vTaskDelay(pdMS_TO_TICKS(5000));
+
+    esp_err_t res = init_FAT_fileSystem();
+    if ( res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init FAT File System! (%s)", esp_err_to_name(res));
+        return ESP_FAIL;
+    }
+    else {
+        ESP_LOGI(TAG, "FAT File System Initialized (%s)", esp_err_to_name(res));
+    }
+
+    res = ds1307_init();
+    if ( res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init RTC DS1307 (%s)", esp_err_to_name(res));
+        return ESP_FAIL;
+    }
+
+    system_logInput("Remota system powered up...");
+
+    gpio_reset_pin(ledYellow);
+    gpio_set_direction(ledYellow, GPIO_MODE_OUTPUT);
+    gpio_set_level(ledYellow,0);
+
+    gpio_reset_pin(ledGreen);
+    gpio_set_direction(ledGreen, GPIO_MODE_OUTPUT);
+    gpio_set_level(ledGreen,0);
+
+    gpio_reset_pin(pushMasterReset);
+    gpio_set_direction(pushMasterReset, GPIO_MODE_INPUT);
+    gpio_pullup_en(pushMasterReset);
+
+    //Set up handshake line interrupt.
+    //GPIO config for the handshake line.
+    gpio_config_t io_conf={
+        .intr_type=GPIO_INTR_POSEDGE,
+        .mode=GPIO_MODE_INPUT,
+        .pull_up_en=1,
+        .pin_bit_mask=(1<<GPIO_HANDSHAKE)
+    };
+    gpio_config(&io_conf);
+    gpio_install_isr_service(0);
+    gpio_set_intr_type(GPIO_HANDSHAKE, GPIO_INTR_POSEDGE);
+    gpio_isr_handler_add(GPIO_HANDSHAKE, gpio_handshake_isr_handler, NULL);
+
+    ESP_LOGI(TAG, "Tamaño del objeto: %i bytes\n", sizeof(s3Tables));  //Imprime el tamaño de la estructura, el cual es constante independientemente del número y tamaño de los vectores
+    //tablesInit(&s3Tables, 3,2,10,3);
+    tablesInit(&s3Tables, 2,    //Tablas de variables analógicas
+                          2,    //Tablas de variables digitales
+                          1,    //Tablas de configuración
+                          1,    //Tablas auxiliares
+                          16,   //Tamaño de tablas analógicas
+                          2,    //Tamaño de tablas digitales
+                          50,   //Tamaño de tablas de configuración
+                          50);  //Tamaño de tablas auxiliares
+
+    //nvs_flash_erase();
+
+    ESP_ERROR_CHECK(init_nvs());
+
+    if (gpio_get_level(pushMasterReset) == 0){      // Check for master reset input
+        vTaskDelay(pdMS_TO_TICKS(250));
+        while(gpio_get_level(pushMasterReset) == 0)
+            continue;
+        ESP_LOGW(TAG, "Master reset button activated!");
+        set_configDefaults_nvs();
+    }
+        
+    //Create tables in the nvs namespace (if they don't exist):
+    create_table_nvs("C", s3Tables.configSize);     //For config table
+    create_table_nvs("A", s3Tables.auxSize);        //For aux table
+    create_float_table_nvs("SF", s3Tables.anSize);        //For Scaling factors table
+    create_float_table_nvs("SO", s3Tables.anSize);        //For Scaling offsets table
+
+    for (int i = 0; i < s3Tables.configSize; i++)
+    {
+        char key[5] = {'\0'};
+        sprintf(key, "C%i", i);
+        read_nvs(key, &s3Tables.configTbl[0][i]);
+    }
+
+    for (int i = 0; i < s3Tables.auxSize; i++)
+    {
+        char key[5] = {'\0'};
+        sprintf(key, "A%i", i);
+        read_nvs(key, &s3Tables.auxTbl[0][i]);
+    }
+
+    for (int i = 0; i < s3Tables.anSize; i++)
+    {
+        char key[6] = {'\0'};
+        sprintf(key, "SF%i", i);
+        size_t size = sizeof(float);
+        esp_err_t r = nvs_get_blob(app_nvs_handle, key, &s3Tables.scalingFactor[i], &size);
+        ESP_ERROR_CHECK(r);
+    }
+
+    for (int i = 0; i < s3Tables.anSize; i++)
+    {
+        char key[6] = {'\0'};
+        sprintf(key, "SO%i", i);
+        size_t size = sizeof(float);
+        esp_err_t r = nvs_get_blob(app_nvs_handle, key, &s3Tables.scalingOffset[i], &size);
+        ESP_ERROR_CHECK(r);
+    }
+    
+
+    sendbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
+    recvbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
+
+    //Create the semaphore.
+    rdySem = xSemaphoreCreateBinary();
+    spiTaskSem = xSemaphoreCreateBinary();
+    
+    xTaskCreatePinnedToCore(spi_task,
+                "spi_task",
+                STACK_SIZE,
+                NULL,
+                (UBaseType_t) 2U,       //Priority Level 2
+                &xSPITaskHandle,
+                1);          
+    xSemaphoreGive(spiTaskSem);
+
+    xTaskCreatePinnedToCore(scaling_task,
+                "scaling_task",
+                STACK_SIZE,
+                NULL,
+                (UBaseType_t) 0U,       //Priority Level 0
+                &xScalingTaskHandle,
+                0);
+
+    xTaskCreatePinnedToCore(mb_event_check_task,
+                "mb_event_check_task",
+                STACK_SIZE,
+                NULL,
+                (UBaseType_t) 2U,       //Priority Level 2
+                &xMBEventCheckTaskHandle,
+                1);
+      
+    ethernetInit();
+
+    // WiFi Initialization:
+    res = WiFi_init();
+    if ( res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init WiFi Module (%s)", esp_err_to_name(res));
+        return ESP_FAIL;
+    }
+    else {
+        ESP_LOGI(TAG, "WiFi module succesfully initialized (%s)", esp_err_to_name(res));
+    }
+
+    modbus_slave_init();
+
+    if (CFG_OP_MODE == 1) {             //Creates the timer for GAS Volume accumulation, only in Gas Lift OP Mode
+        xGLAcc_Timer = xTimerCreate("GL_Timer",
+                             pdMS_TO_TICKS(CFG_GL_TMR_INTERVAL),
+                             pdTRUE,
+                             NULL,
+                             GLTimerCallBack);
+        xTimerStart(xGLAcc_Timer, pdMS_TO_TICKS(1000));
+        ESP_LOGI(TAG, "Gas accumulator timer started with interval %u ms", CFG_GL_TMR_INTERVAL);
+
+        xGLPID_Timer = xTimerCreate("GL_PIDTimer",
+                             pdMS_TO_TICKS(CFG_GL_PID_TMR_INTERVAL),
+                             pdTRUE,
+                             NULL,
+                             GLTimerPIDCallBack);
+        xTimerStart(xGLPID_Timer, pdMS_TO_TICKS(1000));
+        ESP_LOGI(TAG, "Gas PID timer started with interval %u ms", 10);
+    }
+
+    // Starts modbus master stack and modbus master poll task only if required
+    if ((CFG_OP_MODE == 2) || (CFG_OP_MODE == 3) || (CFG_OP_MODE == 4)){
+        //Create and start modbus master poll task:
+        xTaskCreatePinnedToCore(mb_master_poll_task,
+                "mb_master_poll_task",
+                STACK_SIZE,
+                NULL,
+                (UBaseType_t) 1U,       //Priority Level 1
+                &xMBMasterPollTaskHandle,
+                1);
+
+        mb_master_task_created = 1;
+        
+        //Init modbus master stack
+        esp_err_t r = modbus_master_init();
+        if (r != ESP_OK){
+            ESP_LOGE(TAG, "Modbus master initialization error %x", r);
+        }
+        else {
+            modbus_master_connected = 1;
+            ESP_LOGI(TAG, "Modbus master initialized");
+        }
+    }
+
+    
+
+    esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
+    esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
+    esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
+    esp_log_level_set(wifiTAG, CFG_REMOTA_LOG_LEVEL);
+
+    return ESP_OK;
+}
+
+void stop_tasks(void){
+    // Suspend tasks if they're in run state:
+    if (eTaskGetState(xSPITaskHandle) != eSuspended){
+        while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
+                continue;
+        vTaskSuspend(xSPITaskHandle);
+        xSemaphoreGive(spiTaskSem);
+    }
+    if (eTaskGetState(xScalingTaskHandle) != eSuspended){
+        vTaskSuspend(xScalingTaskHandle);
+        ESP_LOGW(TAG, "Program mode is activated. Waiting for setup...");
+        ESP_LOGW(TAG, "SPI task has been suspended");
+        ESP_LOGW(TAG, "Scaling task has been suspended");
+    }
+    if (mb_master_task_created){
+        if (eTaskGetState(xMBMasterPollTaskHandle) != eSuspended){
+            vTaskSuspend(xMBMasterPollTaskHandle);
+            ESP_LOGW(TAG, "Modbus master poll task has been suspended");
+        }
+    }
+    if (xGLAcc_Timer != NULL){
+        if (xTimerIsTimerActive(xGLAcc_Timer) == pdTRUE){
+            xTimerStop(xGLAcc_Timer, 0);
+            ESP_LOGW(TAG, "Gas accumulation timer has been stopped");
+        }
+    }
+
+    if (xGLPID_Timer != NULL){
+        if (xTimerIsTimerActive(xGLPID_Timer) == pdTRUE){
+            xTimerStop(xGLPID_Timer, 0);
+            ESP_LOGW(TAG, "Gas PID timer has been stopped");
+        }
+    }
+}
+
+void resume_tasks(void){
+    //Resume tasks if they're in suspended state:
+    if (eTaskGetState(xSPITaskHandle) == eSuspended){
+        while (xSemaphoreTake(spiTaskSem, portMAX_DELAY) != pdTRUE)
+                continue;
+        vTaskResume(xSPITaskHandle);
+        xSemaphoreGive(spiTaskSem);
+        ESP_LOGW(TAG, "SPI task resumed...");
+    }
+    if (eTaskGetState(xScalingTaskHandle) == eSuspended){
+        vTaskResume(xScalingTaskHandle);
+        ESP_LOGW(TAG, "Scaling task resumed...");
+    }
+    if (mb_master_task_created){
+        if (eTaskGetState(xMBMasterPollTaskHandle) == eSuspended){
+            vTaskResume(xMBMasterPollTaskHandle);
+            ESP_LOGW(TAG, "Modbus master poll task resumed...");
+        }
+    }
+    if (xGLAcc_Timer != NULL){
+        if (xTimerIsTimerActive(xGLAcc_Timer) == pdFALSE){
+            xTimerStart(xGLAcc_Timer, 0);
+            ESP_LOGW(TAG, "Gas accumulation timer has been started...");
+        }      
+    }
+
+    if (xGLPID_Timer != NULL){
+        if (xTimerIsTimerActive(xGLPID_Timer) == pdFALSE){
+            xTimerStart(xGLPID_Timer, 0);
+            ESP_LOGW(TAG, "Gas PID timer has been started...");
+            ESP_LOGW(TAG, "Run mode is activated");
+        }      
+    }
 }

@@ -16,6 +16,7 @@
 
 #define ledYellow 37
 #define ledGreen 36
+#define pushMasterReset 20
 
 #define STACK_SIZE 3072
 #define SPI_BUFFER_SIZE 55
@@ -244,4 +245,7 @@ esp_err_t setTime_ds1307(void);
 esp_err_t system_logInput(const char* message);
 esp_err_t print_systemLog(void);
 
+esp_err_t Remota_init(void);
+void stop_tasks(void);
+void resume_tasks(void);
 #endif
