@@ -14,6 +14,8 @@
 // Macro definitions:
 //____________________________________________________________________________________________________
 
+//#define SYS_LOG_FILE_WRITE_DISABLE
+
 #define ledYellow 37
 #define ledGreen 36
 #define pushMasterReset 20
@@ -69,6 +71,11 @@
 #define AUX_RTC_MINUTE  s3Tables.auxTbl[0][47]
 #define AUX_RTC_SECOND  s3Tables.auxTbl[0][48]
 
+#define AUX_MB_MASTER_TOTAL_POLLS s3Tables.auxTbl[0][5]
+#define AUX_MB_MASTER_ERR_COUNT   s3Tables.auxTbl[0][6]
+#define AUX_MB_MASTER_RETRY_COUNT s3Tables.auxTbl[0][7]
+
+
 
 #define MS24H 86400000                                 // Milisegundos en 24H
 
@@ -101,8 +108,10 @@
 
 static const char *TAG = "Remota-Main";
 static const char *mbSlaveTAG = "Modbus Slave";
+static const char *mbMasterTAG = "Modbus Master"; 
 static const char *mbEventChkTAG = "Modbus Event Check";
 static const char *wifiTAG = "WiFi Module";
+
 
 
 DMA_ATTR WORD_ALIGNED_ATTR uint16_t* recvbuf;
@@ -145,6 +154,7 @@ TimerHandle_t xGLPID_Timer = NULL;
 //The semaphore indicating the slave is ready to receive stuff.
 QueueHandle_t rdySem;
 QueueHandle_t spiTaskSem;
+QueueHandle_t sysLogFileSem;
 
 uint16_t cycleTimeStart, cycleTimeFinish;
 
@@ -162,6 +172,8 @@ uint8_t modbus_master_initialized = 0;
 uint8_t modbus_master_connected = 0;
 uint8_t mb_master_task_created = 0;
 uint8_t resetRequired = 0;
+
+uint8_t ethernet_got_ip = 0, wifi_got_ip = 0;
 
 uint32_t msCounter24 = 0;
 float last_ftgl = 0;
@@ -217,6 +229,7 @@ esp_err_t exchangeData(varTables_t *Tables);
 
 void spi_transaction_counter(void);
 void print_spi_stats(void);
+void print_mb_master_stats(void);
 
 void spi_task(void *pvParameters);
 

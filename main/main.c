@@ -71,14 +71,12 @@ void app_main(void)
         return;
 
     system_logInput("Remota systems have been succesfully initialized");
-    print_systemLog();
+    //print_systemLog();
 
     while (1){          // *** Program main loop ***
         if (CFG_RUN_PGM && (resetRequired == 0)){  //Run mode selected:
             //Resume tasks if they're in suspended state:
             resume_tasks();
-
-            print_spi_stats();
 
             struct tm actualTime;
             ds1307_get_time(&dev, &actualTime);
@@ -95,73 +93,75 @@ void app_main(void)
             AUX_RTC_MINUTE = actualTime.tm_min;
             AUX_RTC_SECOND = actualTime.tm_sec;
 
+            print_spi_stats();
+
             switch (CFG_OP_MODE)    //Perform task according to operation mode selected
             {
             case 0:
                 /* Pozo de Flujo Natural */
-                ESP_LOGI(TAG, "Pozo de Flujo Natural");
+                ESP_LOGD(TAG, "Pozo de Flujo Natural");
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
 
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t%u", NF_AI_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t%u", NF_AI_TTL);
-                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t%u", NF_AI_PTC);
-                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t%u", NF_AI_PTA);
-                ESP_LOGI(TAG, "Temperatura del casing o anular\t\t(TTA): \t%u", NF_AI_TTA);
-                ESP_LOGI(TAG, "Flujo de producción\t\t\t(FT): \t%u\n", NF_AI_FT);
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t%u", NF_AI_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t%u", NF_AI_TTL);
+                ESP_LOGD(TAG, "Presión de cabezal\t\t\t(PTC): \t%u", NF_AI_PTC);
+                ESP_LOGD(TAG, "Presión del casing o anular\t\t(PTA): \t%u", NF_AI_PTA);
+                ESP_LOGD(TAG, "Temperatura del casing o anular\t\t(TTA): \t%u", NF_AI_TTA);
+                ESP_LOGD(TAG, "Flujo de producción\t\t\t(FT): \t%u\n", NF_AI_FT);
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t%.3f", NF_SV_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t%.3f", NF_SV_TTL);
-                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t%.3f", NF_SV_PTC);
-                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t%.3f", NF_SV_PTA);
-                ESP_LOGI(TAG, "Temperatura del casing o anular\t\t(TTA): \t%.3f", NF_SV_TTA);
-                ESP_LOGI(TAG, "Flujo de producción\t\t\t(FT): \t%.3f\n", NF_SV_FT);
+                ESP_LOGD(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t%.3f", NF_SV_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t%.3f", NF_SV_TTL);
+                ESP_LOGD(TAG, "Presión de cabezal\t\t\t(PTC): \t%.3f", NF_SV_PTC);
+                ESP_LOGD(TAG, "Presión del casing o anular\t\t(PTA): \t%.3f", NF_SV_PTA);
+                ESP_LOGD(TAG, "Temperatura del casing o anular\t\t(TTA): \t%.3f", NF_SV_TTA);
+                ESP_LOGD(TAG, "Flujo de producción\t\t\t(FT): \t%.3f\n", NF_SV_FT);
 
-                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", NF_DI_YA1);
-                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", NF_DI_YA2);
-                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", NF_DI_GZA);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", NF_DI_EAAC);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", NF_DI_EADC);
+                ESP_LOGD(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", NF_DI_YA1);
+                ESP_LOGD(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", NF_DI_YA2);
+                ESP_LOGD(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", NF_DI_GZA);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", NF_DI_EAAC);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", NF_DI_EADC);
 
-                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Apertura/cierre de pozo\t\t\t(XV): \t\t%u\n", NF_DO_XV);
+                ESP_LOGD(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Apertura/cierre de pozo\t\t\t(XV): \t\t%u\n", NF_DO_XV);
 
                 break;
             case 1:
                 /* Pozo de Gas Lift */
-                ESP_LOGI(TAG, "Pozo de Gas Lift");
+                ESP_LOGD(TAG, "Pozo de Gas Lift");
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
 
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%u", GL_AI_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%u", GL_AI_TTL);
-                ESP_LOGI(TAG, "Posición válvula control flujo al pozo\t(ZT): \t\t%u", GL_AI_ZT);
-                ESP_LOGI(TAG, "Presión de gas al pozo\t\t\t(PTGL): \t%u", GL_AI_PTGL);
-                ESP_LOGI(TAG, "Temperatura de gas al pozo\t\t(TTGL): \t%u", GL_AI_TTGL);
-                ESP_LOGI(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%u\n", GL_AI_FTGL);
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t\t%u", GL_AI_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%u", GL_AI_TTL);
+                ESP_LOGD(TAG, "Posición válvula control flujo al pozo\t(ZT): \t\t%u", GL_AI_ZT);
+                ESP_LOGD(TAG, "Presión de gas al pozo\t\t\t(PTGL): \t%u", GL_AI_PTGL);
+                ESP_LOGD(TAG, "Temperatura de gas al pozo\t\t(TTGL): \t%u", GL_AI_TTGL);
+                ESP_LOGD(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%u\n", GL_AI_FTGL);
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%.3f", GL_SV_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%.3f", GL_SV_TTL);
-                ESP_LOGI(TAG, "Posición válvula control flujo al pozo\t(ZT): \t\t%.3f", GL_SV_ZT);
-                ESP_LOGI(TAG, "Presión de gas al pozo\t\t\t(PTGL): \t%.3f", GL_SV_PTGL);
-                ESP_LOGI(TAG, "Temperatura de gas al pozo\t\t(TTGL): \t%.3f", GL_SV_TTGL);
-                ESP_LOGI(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%.3f\n", GL_SV_FTGL);
+                ESP_LOGD(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t\t%.3f", GL_SV_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%.3f", GL_SV_TTL);
+                ESP_LOGD(TAG, "Posición válvula control flujo al pozo\t(ZT): \t\t%.3f", GL_SV_ZT);
+                ESP_LOGD(TAG, "Presión de gas al pozo\t\t\t(PTGL): \t%.3f", GL_SV_PTGL);
+                ESP_LOGD(TAG, "Temperatura de gas al pozo\t\t(TTGL): \t%.3f", GL_SV_TTGL);
+                ESP_LOGD(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%.3f\n", GL_SV_FTGL);
 
-                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", GL_DI_YA1);
-                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", GL_DI_YA2);
-                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", GL_DI_GZA);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", GL_DI_EAAC);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", GL_DI_EADC);
+                ESP_LOGD(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", GL_DI_YA1);
+                ESP_LOGD(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", GL_DI_YA2);
+                ESP_LOGD(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", GL_DI_GZA);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", GL_DI_EAAC);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", GL_DI_EADC);
 
-                ESP_LOGI(TAG, "Variables analógicas de salida escritas al módulo de E/S:");
-                ESP_LOGI(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%.3f\n", PID_u.floatValue);
+                ESP_LOGD(TAG, "Variables analógicas de salida escritas al módulo de E/S:");
+                ESP_LOGD(TAG, "Flujo de gas al pozo\t\t\t(FTGL): \t%.3f\n", PID_u.floatValue);
 
-                ESP_LOGI(TAG, "Volumen diario de gas inyectado:");
-                ESP_LOGI(TAG, "Volumen total diario de gas\t\t(FQ): \t\t%.3f\n", GL_FQ24);
+                ESP_LOGD(TAG, "Volumen diario de gas inyectado:");
+                ESP_LOGD(TAG, "Volumen total diario de gas\t\t(FQ): \t\t%.3f\n", GL_FQ24);
 
                 ESP_LOGD(TAG, "GL PID e: %f", PID_e);
                 ESP_LOGD(TAG, "GL PID up: %f", PID_up);
@@ -171,212 +171,218 @@ void app_main(void)
                 break;
             case 2:
                 /* Pozos de Bombeo Mecánico */
-                ESP_LOGI(TAG, "Pozos de Bombeo Mecánico");
+                print_mb_master_stats();
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Pozos de Bombeo Mecánico");
 
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t%u", MP_AI_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t%u", MP_AI_TTL);
-                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t%u", MP_AI_PTA);
-                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t%u", MP_AI_PTC);
-                ESP_LOGI(TAG, "Golpe por minuto (spm)\t\t\t(SPM): \t%u", MP_AI_SPM);
-                ESP_LOGI(TAG, "Ángulo de la viga\t\t\t(ZT): \t%u", MP_AI_ZT);
-                ESP_LOGI(TAG, "Carga de la sarta\t\t\t(WT): \t%u\n", MP_AI_WT);
+                ESP_LOGD(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t%.3f", MP_SV_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t%.3f", MP_SV_TTL);
-                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t%.3f", MP_SV_PTA);
-                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t%.3f", MP_SV_PTC);
-                ESP_LOGI(TAG, "Golpe por minuto (spm)\t\t\t(SPM): \t%.3f", MP_SV_SPM);
-                ESP_LOGI(TAG, "Ángulo de la viga\t\t\t(ZT): \t%.3f", MP_SV_ZT);
-                ESP_LOGI(TAG, "Carga de la sarta\t\t\t(WT): \t%.3f\n", MP_SV_WT);
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t%u", MP_AI_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t%u", MP_AI_TTL);
+                ESP_LOGD(TAG, "Presión del casing o anular\t\t(PTA): \t%u", MP_AI_PTA);
+                ESP_LOGD(TAG, "Presión de cabezal\t\t\t(PTC): \t%u", MP_AI_PTC);
+                ESP_LOGD(TAG, "Golpe por minuto (spm)\t\t\t(SPM): \t%u", MP_AI_SPM);
+                ESP_LOGD(TAG, "Ángulo de la viga\t\t\t(ZT): \t%u", MP_AI_ZT);
+                ESP_LOGD(TAG, "Carga de la sarta\t\t\t(WT): \t%u\n", MP_AI_WT);
 
-                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", MP_DI_YA1);
-                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", MP_DI_YA2);
-                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", MP_DI_GZA);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", MP_DI_EAAC);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", MP_DI_EADC);
+                ESP_LOGD(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t%.3f", MP_SV_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t%.3f", MP_SV_TTL);
+                ESP_LOGD(TAG, "Presión del casing o anular\t\t(PTA): \t%.3f", MP_SV_PTA);
+                ESP_LOGD(TAG, "Presión de cabezal\t\t\t(PTC): \t%.3f", MP_SV_PTC);
+                ESP_LOGD(TAG, "Golpe por minuto (spm)\t\t\t(SPM): \t%.3f", MP_SV_SPM);
+                ESP_LOGD(TAG, "Ángulo de la viga\t\t\t(ZT): \t%.3f", MP_SV_ZT);
+                ESP_LOGD(TAG, "Carga de la sarta\t\t\t(WT): \t%.3f\n", MP_SV_WT);
 
-                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Encendido/apagado de bombeo\t\t(HS1): \t\t%u\n", MP_DO_HS1);
+                ESP_LOGD(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", MP_DI_YA1);
+                ESP_LOGD(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", MP_DI_YA2);
+                ESP_LOGD(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", MP_DI_GZA);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", MP_DI_EAAC);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", MP_DI_EADC);
+
+                ESP_LOGD(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Encendido/apagado de bombeo\t\t(HS1): \t\t%u\n", MP_DO_HS1);
 
                 if (modbus_master_connected) {
-                    ESP_LOGI(TAG, "Variables modbus (input registers) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Voltaje de motor\t\t(ETM): \t%.3f", MP_IR_ETM);
-                    ESP_LOGI(TAG, "Corriente de motor\t(ITM): \t%.3f", MP_IR_ITM);
-                    ESP_LOGI(TAG, "Potencia de motor\t(JTM): \t%.3f\n", MP_IR_JTM);
+                    ESP_LOGD(TAG, "Variables modbus (input registers) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Voltaje de motor\t\t(ETM): \t%.3f", MP_IR_ETM);
+                    ESP_LOGD(TAG, "Corriente de motor\t(ITM): \t%.3f", MP_IR_ITM);
+                    ESP_LOGD(TAG, "Potencia de motor\t(JTM): \t%.3f\n", MP_IR_JTM);
 
-                    ESP_LOGI(TAG, "Variables modbus (holding registers) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Ajuste de velocidad\t(SCM): \t%.3f\n", MP_HR_SCM);
+                    ESP_LOGD(TAG, "Variables modbus (holding registers) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Ajuste de velocidad\t(SCM): \t%.3f\n", MP_HR_SCM);
 
-                    ESP_LOGI(TAG, "Variables modbus (COILS) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Encendido/apagado de bombeo\t(HS1): \t%u\n", MP_COIL_HS1);
+                    ESP_LOGD(TAG, "Variables modbus (COILS) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Encendido/apagado de bombeo\t(HS1): \t%u\n", MP_COIL_HS1);
                 }
                 else{
-                    ESP_LOGE(TAG, "El equipo esclavo no está conectado... Intentando reconectar...");
+                    ESP_LOGE(TAG, "El equipo esclavo no está conectado...");
                 }
 
                 break;
             case 3:
                 /* Pozos de bomba electrosumergible */
-                ESP_LOGI(TAG, "Pozos de Bomba Electrosumergible");
+                print_mb_master_stats();
+                
+                ESP_LOGD(TAG, "Pozos de Bomba Electrosumergible");
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
 
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%u", ES_AI_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%u", ES_AI_TTL);
-                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t\t%u", ES_AI_PTA);
-                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t\t%u", ES_AI_PTC);
-                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%u", ES_AI_PTSB);
-                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%u", ES_AI_PTDB);
-                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%u", ES_AI_TTSB);
-                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%u", ES_AI_TTDB);
-                ESP_LOGI(TAG, "Vibración de bomba\t\t\t(VT): \t\t%u\n", ES_AI_VT);
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t\t%u", ES_AI_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%u", ES_AI_TTL);
+                ESP_LOGD(TAG, "Presión del casing o anular\t\t(PTA): \t\t%u", ES_AI_PTA);
+                ESP_LOGD(TAG, "Presión de cabezal\t\t\t(PTC): \t\t%u", ES_AI_PTC);
+                ESP_LOGD(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%u", ES_AI_PTSB);
+                ESP_LOGD(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%u", ES_AI_PTDB);
+                ESP_LOGD(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%u", ES_AI_TTSB);
+                ESP_LOGD(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%u", ES_AI_TTDB);
+                ESP_LOGD(TAG, "Vibración de bomba\t\t\t(VT): \t\t%u\n", ES_AI_VT);
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%.3f", ES_SV_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%.3f", ES_SV_TTL);
-                ESP_LOGI(TAG, "Presión del casing o anular\t\t(PTA): \t\t%.3f", ES_SV_PTA);
-                ESP_LOGI(TAG, "Presión de cabezal\t\t\t(PTC): \t\t%.3f", ES_SV_PTC);
-                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%.3f", ES_SV_PTSB);
-                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%.3f", ES_SV_PTDB);
-                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%.3f", ES_SV_TTSB);
-                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%.3f", ES_SV_TTDB);
-                ESP_LOGI(TAG, "Vibración de bomba\t\t\t(VT): \t\t%.3f\n", ES_SV_VT);
+                ESP_LOGD(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t\t%.3f", ES_SV_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%.3f", ES_SV_TTL);
+                ESP_LOGD(TAG, "Presión del casing o anular\t\t(PTA): \t\t%.3f", ES_SV_PTA);
+                ESP_LOGD(TAG, "Presión de cabezal\t\t\t(PTC): \t\t%.3f", ES_SV_PTC);
+                ESP_LOGD(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%.3f", ES_SV_PTSB);
+                ESP_LOGD(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%.3f", ES_SV_PTDB);
+                ESP_LOGD(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%.3f", ES_SV_TTSB);
+                ESP_LOGD(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%.3f", ES_SV_TTDB);
+                ESP_LOGD(TAG, "Vibración de bomba\t\t\t(VT): \t\t%.3f\n", ES_SV_VT);
 
-                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", ES_DI_YA1);
-                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", ES_DI_YA2);
-                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", ES_DI_GZA);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", ES_DI_EAAC);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", ES_DI_EADC);
+                ESP_LOGD(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", ES_DI_YA1);
+                ESP_LOGD(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", ES_DI_YA2);
+                ESP_LOGD(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", ES_DI_GZA);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", ES_DI_EAAC);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", ES_DI_EADC);
 
-                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Encendido/apagado de bombeo\t\t(HS1): \t\t%u\n", ES_DO_HS1);
+                ESP_LOGD(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Encendido/apagado de bombeo\t\t(HS1): \t\t%u\n", ES_DO_HS1);
 
                  if (modbus_master_connected) {
-                    ESP_LOGI(TAG, "Variables modbus (input registers) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Voltaje de motor\t\t\t\t\t(ETM): \t\t%.3f", ES_IR_ETM);
-                    ESP_LOGI(TAG, "Corriente de motor\t\t\t\t(ITM): \t\t%.3f", ES_IR_ITM);
-                    ESP_LOGI(TAG, "Frecuencia de salida\t\t\t\t(ST1): \t\t%.3f", ES_IR_ST1);
-                    ESP_LOGI(TAG, "Temperatura de arrollado de motor\t\t(TTM): \t\t%.3f", ES_IR_TTM);
-                    ESP_LOGI(TAG, "Torque de motor\t\t\t\t\t(WTM): \t\t%.3f", ES_IR_WTM);
-                    ESP_LOGI(TAG, "Torque de bomba\t\t\t\t\t(WTB): \t\t%.3f", ES_IR_WTB);
-                    ESP_LOGI(TAG, "Velocidad de la bomba\t\t\t\t(ST2): \t\t%.3f", ES_IR_ST2);
-                    ESP_LOGI(TAG, "Relación de poleas en caja de velocidad (VFD)\t(SFM): \t\t%.3f", ES_IR_SFM);
-                    ESP_LOGI(TAG, "Presión de succión de la bomba\t\t\t(PTSB): \t%.3f", ES_IR_PTSB);
-                    ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t\t(PTDB): \t%.3f", ES_IR_PTDB);
-                    ESP_LOGI(TAG, "Temperatura de succión de la bomba\t\t(TTSB): \t%.3f", ES_IR_TTSB);
-                    ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t\t(TTDB): \t%.3f", ES_IR_TTDB);
-                    ESP_LOGI(TAG, "Vibración de bomba\t\t\t\t(VT): \t\t%.3f\n", ES_IR_VT);
+                    ESP_LOGD(TAG, "Variables modbus (input registers) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Voltaje de motor\t\t\t\t\t(ETM): \t\t%.3f", ES_IR_ETM);
+                    ESP_LOGD(TAG, "Corriente de motor\t\t\t\t(ITM): \t\t%.3f", ES_IR_ITM);
+                    ESP_LOGD(TAG, "Frecuencia de salida\t\t\t\t(ST1): \t\t%.3f", ES_IR_ST1);
+                    ESP_LOGD(TAG, "Temperatura de arrollado de motor\t\t(TTM): \t\t%.3f", ES_IR_TTM);
+                    ESP_LOGD(TAG, "Torque de motor\t\t\t\t\t(WTM): \t\t%.3f", ES_IR_WTM);
+                    ESP_LOGD(TAG, "Torque de bomba\t\t\t\t\t(WTB): \t\t%.3f", ES_IR_WTB);
+                    ESP_LOGD(TAG, "Velocidad de la bomba\t\t\t\t(ST2): \t\t%.3f", ES_IR_ST2);
+                    ESP_LOGD(TAG, "Relación de poleas en caja de velocidad (VFD)\t(SFM): \t\t%.3f", ES_IR_SFM);
+                    ESP_LOGD(TAG, "Presión de succión de la bomba\t\t\t(PTSB): \t%.3f", ES_IR_PTSB);
+                    ESP_LOGD(TAG, "Presión de descarga de la bomba\t\t\t(PTDB): \t%.3f", ES_IR_PTDB);
+                    ESP_LOGD(TAG, "Temperatura de succión de la bomba\t\t(TTSB): \t%.3f", ES_IR_TTSB);
+                    ESP_LOGD(TAG, "Temperatura de descarga de la bomba\t\t(TTDB): \t%.3f", ES_IR_TTDB);
+                    ESP_LOGD(TAG, "Vibración de bomba\t\t\t\t(VT): \t\t%.3f\n", ES_IR_VT);
 
-                    ESP_LOGI(TAG, "Variables de estatus del variador\t\t(YI1): \t\t%u", ES_IR_YI1);
-                    ESP_LOGI(TAG, "Fallas actuales del VFD\t\t\t\t(YI2): \t\t%u\n", ES_IR_YI2);
+                    ESP_LOGD(TAG, "Variables de estatus del variador\t\t(YI1): \t\t%u", ES_IR_YI1);
+                    ESP_LOGD(TAG, "Fallas actuales del VFD\t\t\t\t(YI2): \t\t%u\n", ES_IR_YI2);
 
-                    ESP_LOGI(TAG, "Variables modbus (holding registers) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Velocidad de la bomba\t\t(SCM): \t%.3f\n", ES_HR_SCM);
+                    ESP_LOGD(TAG, "Variables modbus (holding registers) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Velocidad de la bomba\t\t(SCM): \t%.3f\n", ES_HR_SCM);
 
-                    ESP_LOGI(TAG, "Variables modbus (DISCRETES) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Encendido/apagado\t\t(YI): \t%u\n", ES_DISCRETE_YI);
+                    ESP_LOGD(TAG, "Variables modbus (DISCRETES) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Encendido/apagado\t\t(YI): \t%u\n", ES_DISCRETE_YI);
 
-                    ESP_LOGI(TAG, "Variables modbus (COILS) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Encendido/apagado\t\t(HS1): \t%u", ES_COIL_HS1);
-                    ESP_LOGI(TAG, "Reposición de causa de paro\t(HS2): \t%u\n", ES_COIL_HS2);
+                    ESP_LOGD(TAG, "Variables modbus (COILS) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Encendido/apagado\t\t(HS1): \t%u", ES_COIL_HS1);
+                    ESP_LOGD(TAG, "Reposición de causa de paro\t(HS2): \t%u\n", ES_COIL_HS2);
                  }
                  else{
-                    ESP_LOGE(TAG, "El equipo esclavo no está conectado... Intentando reconectar...");
+                    ESP_LOGE(TAG, "El equipo esclavo no está conectado...");
                 }
                 break;
             case 4:
                 /* Pozos con Bomba de Cavidad Progresiva */
-                ESP_LOGI(TAG, "Pozos con Bomba de Cavidad Progresiva");
+                print_mb_master_stats();
+                
+                ESP_LOGD(TAG, "Pozos con Bomba de Cavidad Progresiva");
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
 
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%u", PC_AI_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%u", PC_AI_TTL);
-                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%u", PC_AI_PTSB);
-                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%u", PC_AI_PTDB);
-                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%u", PC_AI_TTSB);
-                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%u", PC_AI_TTDB);
-                ESP_LOGI(TAG, "Vibración de bomba\t\t\t(VT): \t\t%u\n", PC_AI_VT);
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t\t%u", PC_AI_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%u", PC_AI_TTL);
+                ESP_LOGD(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%u", PC_AI_PTSB);
+                ESP_LOGD(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%u", PC_AI_PTDB);
+                ESP_LOGD(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%u", PC_AI_TTSB);
+                ESP_LOGD(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%u", PC_AI_TTDB);
+                ESP_LOGD(TAG, "Vibración de bomba\t\t\t(VT): \t\t%u\n", PC_AI_VT);
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
-                ESP_LOGI(TAG, "Presión de la línea de producción\t(PTL): \t\t%.3f", PC_SV_PTL);
-                ESP_LOGI(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%.3f", PC_SV_TTL);
-                ESP_LOGI(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%.3f", PC_SV_PTSB);
-                ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%.3f", PC_SV_PTDB);
-                ESP_LOGI(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%.3f", PC_SV_TTSB);
-                ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%.3f", PC_SV_TTDB);
-                ESP_LOGI(TAG, "Vibración de bomba\t\t\t(VT): \t\t%.3f\n", PC_SV_VT);
+                ESP_LOGD(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGD(TAG, "Presión de la línea de producción\t(PTL): \t\t%.3f", PC_SV_PTL);
+                ESP_LOGD(TAG, "Temperatura de la línea de producción\t(TTL): \t\t%.3f", PC_SV_TTL);
+                ESP_LOGD(TAG, "Presión de succión de la bomba\t\t(PTSB): \t%.3f", PC_SV_PTSB);
+                ESP_LOGD(TAG, "Presión de descarga de la bomba\t\t(PTDB): \t%.3f", PC_SV_PTDB);
+                ESP_LOGD(TAG, "Temperatura de succión de la bomba\t(TTSB): \t%.3f", PC_SV_TTSB);
+                ESP_LOGD(TAG, "Temperatura de descarga de la bomba\t(TTDB): \t%.3f", PC_SV_TTDB);
+                ESP_LOGD(TAG, "Vibración de bomba\t\t\t(VT): \t\t%.3f\n", PC_SV_VT);
 
-                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", PC_DI_YA1);
-                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", PC_DI_YA2);
-                ESP_LOGI(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", PC_DI_GZA);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", PC_DI_EAAC);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", PC_DI_EADC);
+                ESP_LOGD(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", PC_DI_YA1);
+                ESP_LOGD(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", PC_DI_YA2);
+                ESP_LOGD(TAG, "Alarma por gas tóxico\t\t\t(GZA): \t\t%u", PC_DI_GZA);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", PC_DI_EAAC);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", PC_DI_EADC);
 
-                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Encendido/apagado de bombeo\t\t(HS1): \t\t%u\n", PC_DO_HS1);
+                ESP_LOGD(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Encendido/apagado de bombeo\t\t(HS1): \t\t%u\n", PC_DO_HS1);
 
                 if (modbus_master_connected) {
-                    ESP_LOGI(TAG, "Variables modbus (input registers) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Torque de motor\t\t\t\t\t(WTM): \t\t%.3f", PC_IR_WTM);
-                    ESP_LOGI(TAG, "Torque de bomba\t\t\t\t\t(WTB): \t\t%.3f", PC_IR_WTB);
-                    ESP_LOGI(TAG, "Velocidad de la bomba\t\t\t\t(ST2): \t\t%.3f", PC_IR_ST2);
-                    ESP_LOGI(TAG, "Relación de poleas en caja de velocidad (VFD)\t(SFM): \t\t%.3f", PC_IR_SFM);
-                    ESP_LOGI(TAG, "Presión de succión de la bomba\t\t\t(PTSB): \t%.3f", PC_IR_PTSB);
-                    ESP_LOGI(TAG, "Presión de descarga de la bomba\t\t\t(PTDB): \t%.3f", PC_IR_PTDB);
-                    ESP_LOGI(TAG, "Temperatura de succión de la bomba\t\t(TTSB): \t%.3f", PC_IR_TTSB);
-                    ESP_LOGI(TAG, "Temperatura de descarga de la bomba\t\t(TTDB): \t%.3f", PC_IR_TTDB);
-                    ESP_LOGI(TAG, "Vibración de bomba\t\t\t\t(VT): \t\t%.3f\n", PC_IR_VT);
+                    ESP_LOGD(TAG, "Variables modbus (input registers) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Torque de motor\t\t\t\t\t(WTM): \t\t%.3f", PC_IR_WTM);
+                    ESP_LOGD(TAG, "Torque de bomba\t\t\t\t\t(WTB): \t\t%.3f", PC_IR_WTB);
+                    ESP_LOGD(TAG, "Velocidad de la bomba\t\t\t\t(ST2): \t\t%.3f", PC_IR_ST2);
+                    ESP_LOGD(TAG, "Relación de poleas en caja de velocidad (VFD)\t(SFM): \t\t%.3f", PC_IR_SFM);
+                    ESP_LOGD(TAG, "Presión de succión de la bomba\t\t\t(PTSB): \t%.3f", PC_IR_PTSB);
+                    ESP_LOGD(TAG, "Presión de descarga de la bomba\t\t\t(PTDB): \t%.3f", PC_IR_PTDB);
+                    ESP_LOGD(TAG, "Temperatura de succión de la bomba\t\t(TTSB): \t%.3f", PC_IR_TTSB);
+                    ESP_LOGD(TAG, "Temperatura de descarga de la bomba\t\t(TTDB): \t%.3f", PC_IR_TTDB);
+                    ESP_LOGD(TAG, "Vibración de bomba\t\t\t\t(VT): \t\t%.3f\n", PC_IR_VT);
 
-                    ESP_LOGI(TAG, "Variables de estatus del variador\t\t(YI1): \t\t%u", PC_IR_YI1);
-                    ESP_LOGI(TAG, "Fallas actuales del VFD\t\t\t\t(YI2): \t\t%u\n", PC_IR_YI2);
+                    ESP_LOGD(TAG, "Variables de estatus del variador\t\t(YI1): \t\t%u", PC_IR_YI1);
+                    ESP_LOGD(TAG, "Fallas actuales del VFD\t\t\t\t(YI2): \t\t%u\n", PC_IR_YI2);
 
-                    ESP_LOGI(TAG, "Variables modbus (holding registers) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Velocidad de la bomba\t\t(SCM): \t%.3f\n", PC_HR_SCM);
+                    ESP_LOGD(TAG, "Variables modbus (holding registers) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Velocidad de la bomba\t\t(SCM): \t%.3f\n", PC_HR_SCM);
 
-                    ESP_LOGI(TAG, "Variables modbus (DISCRETES) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Encendido/apagado\t\t(YI): \t%u\n", PC_DISCRETE_YI);
+                    ESP_LOGD(TAG, "Variables modbus (DISCRETES) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Encendido/apagado\t\t(YI): \t%u\n", PC_DISCRETE_YI);
 
-                    ESP_LOGI(TAG, "Variables modbus (COILS) leidas desde el esquipo esclavo:");
-                    ESP_LOGI(TAG, "Encendido/apagado\t\t(HS1): \t%u\n", PC_COIL_HS1);
+                    ESP_LOGD(TAG, "Variables modbus (COILS) leidas desde el esquipo esclavo:");
+                    ESP_LOGD(TAG, "Encendido/apagado\t\t(HS1): \t%u\n", PC_COIL_HS1);
                 }
                 else{
-                    ESP_LOGE(TAG, "El equipo esclavo no está conectado... Intentando reconectar...");
+                    ESP_LOGE(TAG, "El equipo esclavo no está conectado...");
                 }
                 break;
             case 5:
                 /* Estaciones de Válvulas */
-                ESP_LOGI(TAG, "Estaciones de Válvulas\n");
+                ESP_LOGD(TAG, "Estaciones de Válvulas\n");
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Transmisor de presión\t\t\t(PT): \t%u", VS_AI_PT);
-                ESP_LOGI(TAG, "Transmisor de temperatura\t\t(TT): \t%u", VS_AI_TT);
-                ESP_LOGI(TAG, "Transmisor de interface\t\t\t(AT): \t%u\n", VS_AI_AT);
+                ESP_LOGD(TAG, "Variables analógicas de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Transmisor de presión\t\t\t(PT): \t%u", VS_AI_PT);
+                ESP_LOGD(TAG, "Transmisor de temperatura\t\t(TT): \t%u", VS_AI_TT);
+                ESP_LOGD(TAG, "Transmisor de interface\t\t\t(AT): \t%u\n", VS_AI_AT);
 
-                ESP_LOGI(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
-                ESP_LOGI(TAG, "Transmisor de presión\t\t\t(PT): \t%.3f", VS_SV_PT);
-                ESP_LOGI(TAG, "Transmisor de temperatura\t\t(TT): \t%.3f", VS_SV_TT);
-                ESP_LOGI(TAG, "Transmisor de interface\t\t\t(AT): \t%.3f\n", VS_SV_AT);
+                ESP_LOGD(TAG, "Variables analógicas de entrada en unidades de ingeniería:");
+                ESP_LOGD(TAG, "Transmisor de presión\t\t\t(PT): \t%.3f", VS_SV_PT);
+                ESP_LOGD(TAG, "Transmisor de temperatura\t\t(TT): \t%.3f", VS_SV_TT);
+                ESP_LOGD(TAG, "Transmisor de interface\t\t\t(AT): \t%.3f\n", VS_SV_AT);
 
-                ESP_LOGI(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", VS_DI_YA1);
-                ESP_LOGI(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", VS_DI_YA2);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", VS_DI_EAAC);
-                ESP_LOGI(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", VS_DI_EADC);
+                ESP_LOGD(TAG, "Variables digitales de entrada leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Alarma por falla de sistema\t\t(YA1): \t\t%u", VS_DI_YA1);
+                ESP_LOGD(TAG, "Alarma de intruso\t\t\t(YA2): \t\t%u", VS_DI_YA2);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje AC\t\t(EAAC): \t%u", VS_DI_EAAC);
+                ESP_LOGD(TAG, "Alarma por falla de voltaje DC\t\t(EADC): \t%u\n", VS_DI_EADC);
 
-                ESP_LOGI(TAG, "Detector de herramienta de limpieza\t(XI): \t\t%u", VS_DI_XI);
-                ESP_LOGI(TAG, "Bajo nivel de nitrógeno\t\t\t(LNL): \t\t%u", VS_DI_LNL);
-                ESP_LOGI(TAG, "Válvula completamente abierta\t\t(OV): \t\t%u", VS_DI_OV);
-                ESP_LOGI(TAG, "Válvula completamente cerrada\t\t(CV): \t\t%u\n", VS_DI_CV);
+                ESP_LOGD(TAG, "Detector de herramienta de limpieza\t(XI): \t\t%u", VS_DI_XI);
+                ESP_LOGD(TAG, "Bajo nivel de nitrógeno\t\t\t(LNL): \t\t%u", VS_DI_LNL);
+                ESP_LOGD(TAG, "Válvula completamente abierta\t\t(OV): \t\t%u", VS_DI_OV);
+                ESP_LOGD(TAG, "Válvula completamente cerrada\t\t(CV): \t\t%u\n", VS_DI_CV);
 
-                ESP_LOGI(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
-                ESP_LOGI(TAG, "Cierre rápido de la válvula\t\t(XV): \t\t%u\n", VS_DO_XV);
+                ESP_LOGD(TAG, "Variables digitales de salida leidas desde el módulo de E/S:");
+                ESP_LOGD(TAG, "Cierre rápido de la válvula\t\t(XV): \t\t%u\n", VS_DO_XV);
 
                 break;
             
@@ -576,13 +582,23 @@ void spi_transaction_counter(){
 }
 
 void print_spi_stats(){ 
-    //esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
+    ESP_LOGD(TAG, "*-*-*-*-*-*-*-*-*-*");
+    ESP_LOGD(TAG, "SPI I/O module - Communication statistics:");
     uint32_t trans_count = ((uint32_t)(SPI_TRANSACTION_COUNT_H) << 16) | SPI_TRANSACTION_COUNT_L;
     ESP_LOGD(TAG, "Transaction count: %lu Error count: %u Eror ratio: %.2f%%", 
         trans_count, SPI_ERROR_COUNT, (float)SPI_ERROR_COUNT * 100/trans_count);
 
     ESP_LOGD(TAG, "SPI exchange task time: %u us", SPI_EXCHANGE_TIME);
-    ESP_LOGD(TAG, "SPI cycle task time: %u us\n", SPI_CYCLE_TIME);
+    ESP_LOGD(TAG, "SPI cycle task time: %u us", SPI_CYCLE_TIME);
+    ESP_LOGD(TAG, "*-*-*-*-*-*-*-*-*-*\n");
+}
+
+void print_mb_master_stats(void){
+    ESP_LOGD(TAG, "*-*-*-*-*-*-*-*-*-*");
+    ESP_LOGD(TAG, "Modbus master - Communication statistics:");
+    ESP_LOGD(TAG, "Total polls: %u Error count: %u, Retry count: %u", AUX_MB_MASTER_TOTAL_POLLS, AUX_MB_MASTER_ERR_COUNT, AUX_MB_MASTER_RETRY_COUNT);
+    ESP_LOGD(TAG, "Error ratio: %.2f%%", (float)AUX_MB_MASTER_ERR_COUNT * 100/AUX_MB_MASTER_TOTAL_POLLS);
+    ESP_LOGD(TAG, "*-*-*-*-*-*-*-*-*-*\n");
 }
 
 // freeRTOS tasks implementations:
@@ -1191,11 +1207,25 @@ esp_err_t modbus_master_init(void){
     memset(&comm_info, 0, sizeof(mb_communication_info_t));
 
     if (CFG_MB_MASTER_INTERFACE){
+        uint8_t count = 0;
+        while ((!ethernet_got_ip) && (!wifi_got_ip)){
+            ESP_LOGW(mbMasterTAG, "Waiting for IP... %u sec...", 25-count);
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            count++;
+            if (count == 25){
+                system_logInput("Remota initialization failed - No IP for Modbus TCP master");
+                return ESP_FAIL;
+            }
+                
+            continue;
+        }
+            
         void* master_handler = NULL; // Pointer to allocate interface structure
         // Initialization of Modbus master for TCP/IP
         err = mbc_master_init_tcp(&master_handler);
         if (master_handler == NULL || err != ESP_OK) {
-            ESP_LOGE(TAG, "mb controller initialization fail.");
+            ESP_LOGE(mbMasterTAG, "mb controller initialization fail. (%s)", esp_err_to_name(err));
+            return err;
         }
 
         //char slaveIP_str[16] = {'\0'};    //Moved to remota_globals.h
@@ -1206,17 +1236,12 @@ esp_err_t modbus_master_init(void){
         IP0[3] = *(CFG_SLAVE_IP+1) & 0x00FF;
         sprintf(slaveIP_str, "%hhu.%hhu.%hhu.%hhu", IP0[0], IP0[1], IP0[2], IP0[3]);
         
-        ESP_LOGV(TAG, "Slave IP Address: %s", slaveIP_str);
+        ESP_LOGV(mbMasterTAG, "Slave IP Address: %s", slaveIP_str);
 
         const char* slave_ip_address_table[2] = {
             slaveIP_str,       // Address corresponds to UID1 and set to predefined value by user
             NULL               // end of table
         };
-
-        /* const char* slave_ip_address_table[2] = {
-            "172.16.0.4",     // Address corresponds to UID1 and set to predefined value by user
-            NULL               // end of table
-        }; */
 
         comm_info.ip_port = 502;                    // Modbus TCP port number (default = 502)
         comm_info.ip_addr_type = MB_IPV4;                   // version of IP protocol
@@ -1224,7 +1249,11 @@ esp_err_t modbus_master_init(void){
         comm_info.ip_addr = (void*)slave_ip_address_table;  // assign table of IP addresses
         comm_info.ip_netif_ptr = eth_netif;              // esp_netif_ptr pointer to the corresponding network interface
 
-        ESP_ERROR_CHECK(mbc_master_setup((void*)&comm_info));
+        err = mbc_master_setup((void*)&comm_info);
+        if (err != ESP_OK) {
+            ESP_LOGE(mbMasterTAG, "mb master setup fail. (%s)", esp_err_to_name(err));
+            return err;
+        }
         
     }
     else {
@@ -1232,7 +1261,8 @@ esp_err_t modbus_master_init(void){
         // Initialization of Modbus master for serial port
         err = mbc_master_init(MB_PORT_SERIAL_MASTER, &master_handler);
         if (master_handler == NULL || err != ESP_OK) {
-            ESP_LOGE(TAG, "mb controller initialization fail.");
+            ESP_LOGE(mbMasterTAG, "mb controller initialization fail.");
+            return err;
         }
 
         comm_info.port = 2;                  // Serial port number
@@ -1240,31 +1270,39 @@ esp_err_t modbus_master_init(void){
         comm_info.baudrate = ((uint32_t)CFG_MB_MASTER_BAUDRATE_H << 16) | CFG_MB_MASTER_BAUDRATE_L;           // Modbus communication baud rate
         comm_info.parity = MB_PARITY_NONE;    // parity option for serial port
 
-        ESP_ERROR_CHECK(mbc_master_setup((void*)&comm_info));
+        err = mbc_master_setup((void*)&comm_info);
+        if (err != ESP_OK) {
+            ESP_LOGE(mbMasterTAG, "mb master setup fail. (%s)", esp_err_to_name(err));
+            return err;
+        }
 
         // Set UART pin numbers
-        ESP_ERROR_CHECK(uart_set_pin(2, 41, 42, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-        ESP_LOGI(TAG, "Modbus master RTU initialized at: %lu bps", comm_info.baudrate);
+        uart_set_pin(2, 41, 42, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+        ESP_LOGI(mbMasterTAG, "Modbus master RTU initialized at: %lu bps", comm_info.baudrate);
     }
 
     switch (CFG_OP_MODE)    //Select appropiate dictionary depending on OP Mode
     {
     case 2: //Mechanical Pump Wells
-        ESP_ERROR_CHECK(mbc_master_set_descriptor(&MP_device_parameters[0], num_MP_device_parameters));
+        err = mbc_master_set_descriptor(&MP_device_parameters[0], num_MP_device_parameters);
         break;
     case 3: //Electro Submersible Pump Wells
-        ESP_ERROR_CHECK(mbc_master_set_descriptor(&ES_device_parameters[0], num_ES_device_parameters));
+        err = mbc_master_set_descriptor(&ES_device_parameters[0], num_ES_device_parameters);
         break;
     case 4: //Progressive Cavity Pump Wells
-        ESP_ERROR_CHECK(mbc_master_set_descriptor(&PC_device_parameters[0], num_PC_device_parameters));
+        err = mbc_master_set_descriptor(&PC_device_parameters[0], num_PC_device_parameters);
         break;
     }
-    
+    if (err != ESP_OK) {
+        ESP_LOGE(mbMasterTAG, "mb master set descriptors fail. (%s)", esp_err_to_name(err));
+        return err;
+    }
 
     err = mbc_master_start();
     modbus_master_initialized = 1;
+    system_logInput("Modbus master stack succesfully initialized");
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "mb controller start fail, err=%x.", err);
+        ESP_LOGE(mbMasterTAG, "mb controller start fail, (%s)", esp_err_to_name(err));
     }
     return err;
 }
@@ -1547,6 +1585,8 @@ void mb_master_poll_task(void *pvParameters){
     esp_err_t err;
     const mb_parameter_descriptor_t* param_descriptor = NULL;
     uint8_t temp;
+    uint8_t log_connected_reported = 0, log_disconnected_reported = 0;
+
     
     while(!modbus_master_initialized){
         vTaskDelay(pdMS_TO_TICKS(20));
@@ -1556,6 +1596,7 @@ void mb_master_poll_task(void *pvParameters){
     while (1)
     {
         if (modbus_master_connected){
+            log_disconnected_reported = 0;
             switch (CFG_OP_MODE)
             {
             case 2:         //Mechanical Pump Wells
@@ -1564,6 +1605,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&MP_IR_ETM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1571,7 +1619,13 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
+                        if(CFG_MB_MASTER_INTERFACE){    // Register event in case of TCP/IP interface
+                            system_logInput("Modbus master is NOT connected to slave device(s)");
+                            log_disconnected_reported = 1;
+                            log_connected_reported = 0;
+                        }
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
                                         (char*)param_descriptor->param_key,
@@ -1586,6 +1640,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&MP_IR_ITM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1593,6 +1654,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ITM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1608,6 +1670,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&MP_IR_JTM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1615,6 +1684,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_JTM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1627,17 +1697,33 @@ void mb_master_poll_task(void *pvParameters){
                 }
 
                 err = mbc_master_set_parameter(MP_SCM, "MP_SCM", (uint8_t*)&MP_HR_SCM, &type);
+                if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                    AUX_MB_MASTER_TOTAL_POLLS = 0;
+                    AUX_MB_MASTER_ERR_COUNT = 0;
+                    AUX_MB_MASTER_RETRY_COUNT = 0;
+                }
+                else
+                    AUX_MB_MASTER_TOTAL_POLLS++;
                 if (err == ESP_OK) {
                     ESP_LOGV(TAG, "Set parameter data successfully.");
                 } else {
+                    AUX_MB_MASTER_ERR_COUNT++;
                     modbus_master_connected = 0;
                     ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
                 }
                 
                 err = mbc_master_set_parameter(MP_HS1, "MP_HS1", (uint8_t*)&s3Tables.mbTbl8bit[0][0], &type);
+                if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                    AUX_MB_MASTER_TOTAL_POLLS = 0;
+                    AUX_MB_MASTER_ERR_COUNT = 0;
+                    AUX_MB_MASTER_RETRY_COUNT = 0;
+                }
+                else
+                    AUX_MB_MASTER_TOTAL_POLLS++;
                 if (err == ESP_OK) {
                     ESP_LOGV(TAG, "Set parameter data successfully.");
                 } else {
+                    AUX_MB_MASTER_ERR_COUNT++;
                     modbus_master_connected = 0;
                     ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
                 }
@@ -1650,6 +1736,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_ETM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1657,7 +1750,13 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
+                        if(CFG_MB_MASTER_INTERFACE){    // Register event in case of TCP/IP interface
+                            system_logInput("Modbus master is NOT connected to slave device(s)");
+                            log_disconnected_reported = 1;
+                            log_connected_reported = 0;
+                        }
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
                                         (char*)param_descriptor->param_key,
@@ -1672,6 +1771,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_ITM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1679,6 +1785,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1694,6 +1801,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_ST1, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1701,6 +1815,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1716,6 +1831,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_TTM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1723,6 +1845,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1738,6 +1861,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_WTM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1745,6 +1875,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1760,6 +1891,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_WTB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1767,6 +1905,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1782,6 +1921,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_ST2, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1789,6 +1935,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1804,6 +1951,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_YI1, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1811,6 +1965,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1826,6 +1981,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_YI2, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1833,6 +1995,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1848,6 +2011,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_SFM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1855,6 +2025,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1870,6 +2041,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_PTSB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1877,6 +2055,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1892,6 +2071,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_PTDB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1899,6 +2085,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1914,6 +2101,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_TTSB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1921,6 +2115,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1936,6 +2131,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_TTDB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1943,6 +2145,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1958,6 +2161,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&ES_IR_VT, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1965,6 +2175,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1980,6 +2191,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&s3Tables.mbTbl8bit[0][0], &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -1987,6 +2205,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -1999,27 +2218,51 @@ void mb_master_poll_task(void *pvParameters){
                 }
 
                 err = mbc_master_set_parameter(ES_SCM, "ES_SCM", (uint8_t*)&ES_HR_SCM, &type);
+                if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                    AUX_MB_MASTER_TOTAL_POLLS = 0;
+                    AUX_MB_MASTER_ERR_COUNT = 0;
+                    AUX_MB_MASTER_RETRY_COUNT = 0;
+                }
+                else
+                    AUX_MB_MASTER_TOTAL_POLLS++;
                 if (err == ESP_OK) {
                     ESP_LOGV(TAG, "Set parameter data successfully.");
                 } else {
+                    AUX_MB_MASTER_ERR_COUNT++;
                     modbus_master_connected = 0;
                     ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
                 }
                 
                 temp = ES_COIL_HS1;
                 err = mbc_master_set_parameter(ES_HS1, "ES_HS1", (uint8_t*)&temp, &type);
+                if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                    AUX_MB_MASTER_TOTAL_POLLS = 0;
+                    AUX_MB_MASTER_ERR_COUNT = 0;
+                    AUX_MB_MASTER_RETRY_COUNT = 0;
+                }
+                else
+                    AUX_MB_MASTER_TOTAL_POLLS++;
                 if (err == ESP_OK) {
                     ESP_LOGV(TAG, "Set parameter data successfully.");
                 } else {
+                    AUX_MB_MASTER_ERR_COUNT++;
                     modbus_master_connected = 0;
                     ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
                 }
 
                 temp = ES_COIL_HS2;
                 err = mbc_master_set_parameter(ES_HS2, "ES_HS2", (uint8_t*)&temp, &type);
+                if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                    AUX_MB_MASTER_TOTAL_POLLS = 0;
+                    AUX_MB_MASTER_ERR_COUNT = 0;
+                    AUX_MB_MASTER_RETRY_COUNT = 0;
+                }
+                else
+                    AUX_MB_MASTER_TOTAL_POLLS++;
                 if (err == ESP_OK) {
                     ESP_LOGV(TAG, "Set parameter data successfully.");
                 } else {
+                    AUX_MB_MASTER_ERR_COUNT++;
                     modbus_master_connected = 0;
                     ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
                 }
@@ -2030,6 +2273,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_WTM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2037,7 +2287,13 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
+                        if(CFG_MB_MASTER_INTERFACE){    // Register event in case of TCP/IP interface
+                            system_logInput("Modbus master is NOT connected to slave device(s)");
+                            log_disconnected_reported = 1;
+                            log_connected_reported = 0;
+                        }
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
                                         (char*)param_descriptor->param_key,
@@ -2052,6 +2308,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_WTB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2059,6 +2322,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2074,6 +2338,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_ST2, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2081,6 +2352,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2096,6 +2368,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_YI1, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2103,6 +2382,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2118,6 +2398,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_YI2, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2125,6 +2412,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2140,6 +2428,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_SFM, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2147,6 +2442,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2162,6 +2458,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_PTSB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2169,6 +2472,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2184,6 +2488,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_PTDB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2191,6 +2502,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2206,6 +2518,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_TTSB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2213,6 +2532,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2228,6 +2548,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_TTDB, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2235,6 +2562,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2250,6 +2578,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&PC_IR_VT, &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2257,6 +2592,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2272,6 +2608,13 @@ void mb_master_poll_task(void *pvParameters){
                 err = mbc_master_get_cid_info(cid, &param_descriptor);
                 if ((err != ESP_ERR_NOT_FOUND) && (param_descriptor != NULL)) {
                     err = mbc_master_get_parameter(param_descriptor->cid, (char*)param_descriptor->param_key, (uint8_t*)&s3Tables.mbTbl8bit[0][0], &type);
+                    if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                        AUX_MB_MASTER_TOTAL_POLLS = 0;
+                        AUX_MB_MASTER_ERR_COUNT = 0;
+                        AUX_MB_MASTER_RETRY_COUNT = 0;
+                    }
+                    else
+                        AUX_MB_MASTER_TOTAL_POLLS++;
                     if (err == ESP_OK) {
                         ESP_LOGV(TAG, "Characteristic #%d %s (%s) value = (%f) read successful.",
                                         param_descriptor->cid,
@@ -2279,6 +2622,7 @@ void mb_master_poll_task(void *pvParameters){
                                         (char*)param_descriptor->param_units,
                                         MP_IR_ETM);
                     } else {
+                        AUX_MB_MASTER_ERR_COUNT++;
                         modbus_master_connected = 0;
                         ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
                                         param_descriptor->cid,
@@ -2291,18 +2635,34 @@ void mb_master_poll_task(void *pvParameters){
                 }
 
                 err = mbc_master_set_parameter(PC_SCM, "PC_SCM", (uint8_t*)&PC_HR_SCM, &type);
+                if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                    AUX_MB_MASTER_TOTAL_POLLS = 0;
+                    AUX_MB_MASTER_ERR_COUNT = 0;
+                    AUX_MB_MASTER_RETRY_COUNT = 0;
+                }
+                else
+                    AUX_MB_MASTER_TOTAL_POLLS++;
                 if (err == ESP_OK) {
                     ESP_LOGV(TAG, "Set parameter data successfully.");
                 } else {
+                    AUX_MB_MASTER_ERR_COUNT++;
                     modbus_master_connected = 0;
                     ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
                 }
                 
                 temp = PC_COIL_HS1;
                 err = mbc_master_set_parameter(PC_HS1, "PC_HS1", (uint8_t*)&temp, &type);
+                if (AUX_MB_MASTER_TOTAL_POLLS == 65535){
+                    AUX_MB_MASTER_TOTAL_POLLS = 0;
+                    AUX_MB_MASTER_ERR_COUNT = 0;
+                    AUX_MB_MASTER_RETRY_COUNT = 0;
+                }
+                else
+                    AUX_MB_MASTER_TOTAL_POLLS++;
                 if (err == ESP_OK) {
                     ESP_LOGV(TAG, "Set parameter data successfully.");
                 } else {
+                    AUX_MB_MASTER_ERR_COUNT++;
                     modbus_master_connected = 0;
                     ESP_LOGE(TAG, "Set data fail, err = 0x%x (%s).", (int)err, (char*)esp_err_to_name(err));
                 }
@@ -2318,15 +2678,27 @@ void mb_master_poll_task(void *pvParameters){
             req.reg_start = 0;
             uint8_t response;
             esp_err_t err = mbc_master_send_request(&req, &response);
-            //ESP_LOGW(TAG, "Modbus master send request result: %i", err);
-            if (err != ESP_ERR_INVALID_STATE)
+            AUX_MB_MASTER_RETRY_COUNT++;
+            //ESP_LOGW(TAG, "Modbus master send request result: %s", esp_err_to_name(err));
+            if ((err != ESP_ERR_INVALID_STATE) && (err != ESP_ERR_TIMEOUT)) {
                 modbus_master_connected = 1;
-            else
+                if (log_connected_reported == 0){
+                    system_logInput("Modbus master connected to slave device(s)");
+                    log_connected_reported = 1;
+                }
+            }
+                
+            else{
                 modbus_master_connected = 0;
+                if (log_disconnected_reported == 0){
+                    system_logInput("Modbus master is NOT connected to slave device(s)");
+                    log_disconnected_reported = 1;
+                    log_connected_reported = 0;
+                }
+            }
+                
             vTaskDelay(pdMS_TO_TICKS(20));
         }
-        
-        
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
     
@@ -2609,6 +2981,13 @@ esp_err_t system_logInput(const char* message){
     //strftime(time_str, sizeof(time_str), "%d-%m-%Y %H:%M:%S", &actualTime);
     strftime(time_str, sizeof(time_str), "%c", &actualTime);
     
+    ESP_LOGW(TAG, "(%s) - %s\n", time_str, message);
+
+#ifndef SYS_LOG_FILE_WRITE_DISABLE
+
+    while (xSemaphoreTake(sysLogFileSem, portMAX_DELAY) != pdTRUE)
+            continue;
+
     ESP_LOGV(TAG, "Creating a backup file from sys_log.log to sys_log.bak");
     FILE *file, *f_backup;
     char character;
@@ -2620,6 +2999,7 @@ esp_err_t system_logInput(const char* message){
         file = fopen("/spiflash/sys_log.log", "wb");
         if (file == NULL) {
             ESP_LOGV(TAG, "Failed to create file");
+            xSemaphoreGive(sysLogFileSem);
             return ESP_FAIL;
         }
         fclose(file);
@@ -2631,6 +3011,7 @@ esp_err_t system_logInput(const char* message){
     if (f_backup == NULL) {
         ESP_LOGE(TAG, "Failed to open file for writing");
         fclose(file);
+        xSemaphoreGive(sysLogFileSem);
         return ESP_FAIL;
     }
 
@@ -2650,6 +3031,7 @@ esp_err_t system_logInput(const char* message){
     file = fopen("/spiflash/sys_log.bak", "a");
     if (file == NULL) {
         ESP_LOGE(TAG, "Failed to open file for append");
+        xSemaphoreGive(sysLogFileSem);
         return ESP_FAIL;
     }
     
@@ -2669,10 +3051,12 @@ esp_err_t system_logInput(const char* message){
         ESP_LOGV(TAG, "File renamed succesfully");
     else {
         ESP_LOGE(TAG, "Failed to remove original file");
+        xSemaphoreGive(sysLogFileSem);
         return ESP_FAIL;
     }
+#endif
         
-
+    xSemaphoreGive(sysLogFileSem);
     return ESP_OK;
 }
 
@@ -2697,7 +3081,11 @@ esp_err_t print_systemLog(void){
 
 esp_err_t Remota_init(void){
 
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    ESP_LOGW(TAG, "Startup delay... 5 secs - Please wait...");
+    for (uint8_t i = 0; i < 5; i++){
+        printf("*.*.*.*.*\n");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 
     esp_err_t res = init_FAT_fileSystem();
     if ( res != ESP_OK) {
@@ -2714,6 +3102,8 @@ esp_err_t Remota_init(void){
         return ESP_FAIL;
     }
 
+    sysLogFileSem = xSemaphoreCreateBinary();
+    xSemaphoreGive(sysLogFileSem);
     system_logInput("Remota system powered up...");
 
     gpio_reset_pin(ledYellow);
@@ -2802,6 +3192,14 @@ esp_err_t Remota_init(void){
         ESP_ERROR_CHECK(r);
     }
     
+    esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
+    esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
+    esp_log_level_set(mbMasterTAG, CFG_REMOTA_LOG_LEVEL);
+    esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
+    esp_log_level_set(wifiTAG, CFG_REMOTA_LOG_LEVEL);
+    //esp_log_level_set("MB_CONTROLLER_MASTER", 0);
+    //esp_log_level_set("MB_TCP_SLAVE_PORT", 0);
+    esp_log_level_set("CRC Check", 0);
 
     sendbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
     recvbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
@@ -2834,7 +3232,7 @@ esp_err_t Remota_init(void){
                 (UBaseType_t) 2U,       //Priority Level 2
                 &xMBEventCheckTaskHandle,
                 1);
-      
+
     ethernetInit();
 
     // WiFi Initialization:
@@ -2882,21 +3280,16 @@ esp_err_t Remota_init(void){
         
         //Init modbus master stack
         esp_err_t r = modbus_master_init();
-        if (r != ESP_OK){
-            ESP_LOGE(TAG, "Modbus master initialization error %x", r);
+        if ((r != ESP_OK) && (modbus_master_initialized == 0)) {
+            ESP_LOGE(TAG, "Modbus master initialization error (%s)", esp_err_to_name(r));
+            system_logInput("Modbus master initialization error");
+            return ESP_FAIL;
         }
         else {
             modbus_master_connected = 1;
             ESP_LOGI(TAG, "Modbus master initialized");
         }
     }
-
-    
-
-    esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
-    esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
-    esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
-    esp_log_level_set(wifiTAG, CFG_REMOTA_LOG_LEVEL);
 
     return ESP_OK;
 }
@@ -2911,6 +3304,7 @@ void stop_tasks(void){
     }
     if (eTaskGetState(xScalingTaskHandle) != eSuspended){
         vTaskSuspend(xScalingTaskHandle);
+        print_systemLog();
         ESP_LOGW(TAG, "Program mode is activated. Waiting for setup...");
         ESP_LOGW(TAG, "SPI task has been suspended");
         ESP_LOGW(TAG, "Scaling task has been suspended");

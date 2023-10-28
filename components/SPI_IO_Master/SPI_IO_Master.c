@@ -110,7 +110,7 @@ esp_err_t spi_receive(uint8_t nData)
     uint16_t crcRecv = recvbuf[nData];
     uint16_t crc = checksumTable(recvbuf, nData);
     if (crcRecv != crc){
-        ESP_LOGE("CRC Check:", "Communication CRC16 error - Bad checksum!");
+        ESP_LOGE("CRC Check", "Communication CRC16 error - Bad checksum!");
         return ESP_FAIL;
     }
 
@@ -160,7 +160,7 @@ esp_err_t spi_exchange(uint8_t nData){
     uint16_t crcRecv = recvbuf[nData];
     uint16_t crc = checksumTable(recvbuf, nData);
     if (crcRecv != crc){
-        ESP_LOGE("CRC Check:", "Communication CRC16 error - Bad checksum!");
+        ESP_LOGE("CRC Check", "Communication CRC16 error - Bad checksum!");
         return ESP_FAIL;
     }
     return ESP_OK;

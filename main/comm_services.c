@@ -62,11 +62,6 @@ ________________________________________________________________________________
 #define ETHERNET_SPI_CLOCK_MHZ 16
 #define ETHERNET_SPI_HOST SPI3_HOST
 
-/* #define WIFI_SSID "Fibranet 991820"
-#define WIFI_PASSWORD "wtj5T3hm"
-#define WIFI_AP_SSID "Remota A2SCP"
-#define WIFI_AP_PASSWORD "123456789" */
-
 //____________________________________________________________________________________________________
 // Function prototypes:
 //____________________________________________________________________________________________________
@@ -140,6 +135,7 @@ void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(ethTAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(ethTAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
     ESP_LOGI(ethTAG, "~~~~~~~~~~~");
+    ethernet_got_ip = 1;
 }
 
 void wifi_event_handler(void *arg, esp_event_base_t event_base,
@@ -159,6 +155,7 @@ void wifi_event_handler(void *arg, esp_event_base_t event_base,
     case IP_EVENT_STA_GOT_IP:
         WiFi_Status = WIFI_GOT_IP;
         ESP_LOGI(wifiTAG, "Got IP address");
+        wifi_got_ip = 1;
         break;
     case WIFI_EVENT_STA_DISCONNECTED:
         WiFi_Status = WIFI_DISCONNECTED;
@@ -304,9 +301,9 @@ void ethernetInit() {
     // Initialize TCP/IP network interface (should be called only once in application)
     ESP_ERROR_CHECK(esp_netif_init());
     // Create default event loop that running in background
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-
+    esp_event_loop_create_default();
+    
     // Create instance(s) of esp-netif for SPI Ethernet(s)
     esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
     esp_netif_config_t cfg_spi = {
@@ -489,8 +486,8 @@ esp_err_t WiFi_Begin_STA(void)
 
     // Stage 1. Wi-Fi/LwIP Init Phase:
 
-     esp_netif_init();
-     esp_event_loop_create_default();
+     //esp_netif_init();
+     //esp_event_loop_create_default();
      wifi_STA_netif= esp_netif_create_default_wifi_sta();
 
      if (!CFG_DHCP){     //Static IP Configuration:
@@ -536,8 +533,8 @@ esp_err_t WiFi_Begin_AP(void)
 
     // Stage 1. Wi-Fi/LwIP Init Phase:
 
-    esp_netif_init();
-    esp_event_loop_create_default();
+    //esp_netif_init();
+    //esp_event_loop_create_default();
     wifi_AP_netif = esp_netif_create_default_wifi_ap();
 
     esp_netif_dhcps_stop(wifi_AP_netif);
@@ -593,8 +590,8 @@ esp_err_t WiFi_Begin_STA_AP(void)
 
     // Stage 1. Wi-Fi/LwIP Init Phase:
 
-    esp_netif_init();
-    esp_event_loop_create_default();
+    //esp_netif_init();
+    //esp_event_loop_create_default();
     wifi_STA_netif = esp_netif_create_default_wifi_sta();
     wifi_AP_netif = esp_netif_create_default_wifi_ap();
 
@@ -625,7 +622,7 @@ esp_err_t WiFi_Begin_STA_AP(void)
     strcpy((char *)wifi_sta_cfg.ssid, WIFI_SSID);
     strcpy((char *)wifi_sta_cfg.password, WIFI_PASSWORD);
 
-    printf("\n%s\n%s\n", wifi_sta_cfg.ssid, wifi_sta_cfg.password);
+    //printf("\n%s\n%s\n", wifi_sta_cfg.ssid, wifi_sta_cfg.password);
 
     wifi_ap_config_t wifi_ap_cfg = {
         .ssid_len = strlen(WIFI_AP_SSID),
@@ -640,7 +637,7 @@ esp_err_t WiFi_Begin_STA_AP(void)
     strcpy((char *)wifi_ap_cfg.ssid, WIFI_AP_SSID);
     strcpy((char *)wifi_ap_cfg.password, WIFI_AP_PASSWORD);
 
-    printf("\n%s\n%s\n", wifi_ap_cfg.ssid, wifi_ap_cfg.password);
+    //printf("\n%s\n%s\n", wifi_ap_cfg.ssid, wifi_ap_cfg.password);
 
     if (strlen(WIFI_AP_PASSWORD) == 0)
     {
