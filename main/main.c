@@ -19,6 +19,7 @@
 #include "freertos/timers.h"
 
 #include "driver/gpio.h"
+#include "driver/temperature_sensor.h"
 
 #include "SPI_IO_Master.h"
 
@@ -71,6 +72,7 @@ void app_main(void)
         return;
 
     system_logInput("Remota systems have been succesfully initialized");
+
     //print_systemLog();
 
     while (1){          // *** Program main loop ***
@@ -93,7 +95,11 @@ void app_main(void)
             AUX_RTC_MINUTE = actualTime.tm_min;
             AUX_RTC_SECOND = actualTime.tm_sec;
 
+            ESP_LOGI(TAG, "CPU temperature: %.02f ℃", (float)AUX_CPU_TEMPERATURE / 100);
+            
             print_spi_stats();
+
+            print_mb_slave_stats();
 
             switch (CFG_OP_MODE)    //Perform task according to operation mode selected
             {
@@ -601,6 +607,25 @@ void print_mb_master_stats(void){
     ESP_LOGD(TAG, "*-*-*-*-*-*-*-*-*-*\n");
 }
 
+void print_mb_slave_stats(void){
+    ESP_LOGD(TAG, "*-*-*-*-*-*-*-*-*-*");
+    ESP_LOGD(TAG, "Modbus slave - Communication statistics:");
+    ESP_LOGD(TAG, "Holding register read operations: %u", AUX_MB_SLAVE_HR_READS);
+    ESP_LOGD(TAG, "Holding register write operations: %u", AUX_MB_SLAVE_HR_WRITES);
+    ESP_LOGD(TAG, "Coil register read operations: %u", AUX_MB_SLAVE_COIL_READS);
+    ESP_LOGD(TAG, "Coil register write operations: %u", AUX_MB_SLAVE_COIL_WRITES);
+    ESP_LOGD(TAG, "Input register read operations: %u", AUX_MB_SLAVE_INPUT_READS);
+    ESP_LOGD(TAG, "Discrete register read operations: %u", AUX_MB_SLAVE_STATUS_READS);
+    uint32_t totalRWOps = AUX_MB_SLAVE_HR_READS +
+                          AUX_MB_SLAVE_HR_WRITES +
+                          AUX_MB_SLAVE_COIL_READS +
+                          AUX_MB_SLAVE_COIL_WRITES +
+                          AUX_MB_SLAVE_INPUT_READS +
+                          AUX_MB_SLAVE_STATUS_READS;
+    ESP_LOGD(TAG, "Total R/W operations: %lu", totalRWOps);
+    ESP_LOGD(TAG, "*-*-*-*-*-*-*-*-*-*\n");
+}
+
 // freeRTOS tasks implementations:
 //____________________________________________________________________________________________________
 void spi_task(void *pvParameters)
@@ -608,6 +633,7 @@ void spi_task(void *pvParameters)
     uint16_t exchgTimeStart, exchgTimeFinish;
     
     init_spi();
+    system_logInput("SPI Communication with I/O Module has been initialized");
 
     xSemaphoreGive(rdySem);
     cycleTimeStart = 0;
@@ -626,7 +652,8 @@ void spi_task(void *pvParameters)
             continue;
         esp_err_t res = exchangeData(&s3Tables);
         if (res != ESP_OK){
-            ESP_LOGE("spi_task", "Communication error! Trying to fix...");
+            ESP_LOGE("SPI_task", "Communication error! Trying to fix...");
+            system_logInput("I/O Module communication error");
             spi_test();
         }
         xSemaphoreGive(spiTaskSem);
@@ -653,12 +680,17 @@ esp_err_t modbus_slave_init(void){
         esp_err_t err = mbc_slave_init_tcp(&slave_handler);
         if (slave_handler == NULL || err != ESP_OK) {
             // Error handling is performed here
-            ESP_LOGE(mbSlaveTAG, "mb controller initialization fail.");
+            ESP_LOGE(mbSlaveTAG, "Modbus controller initialization fail.");
+            return ESP_FAIL;
         }
 
         //Stage 2. Configuring Slave Data Access:
 
-        ESP_ERROR_CHECK(create_modbus_map());
+        err = create_modbus_map();
+        if (err != ESP_OK) {
+            ESP_LOGE(mbSlaveTAG, "Modbus memory map creation failed (%s)", esp_err_to_name(err));
+            return ESP_FAIL;
+        }
 
         //Stage 3. Slave Communication Options:
 
@@ -670,7 +702,11 @@ esp_err_t modbus_slave_init(void){
         comm_info.ip_netif_ptr = eth_netif;
 
         // Setup communication parameters and start stack
-        ESP_ERROR_CHECK(mbc_slave_setup((void*)&comm_info));
+        err = mbc_slave_setup((void*)&comm_info);
+        if (err != ESP_OK) {
+            ESP_LOGE(mbSlaveTAG, "Modbus slave setup failed (%s)", esp_err_to_name(err));
+            return ESP_FAIL;
+        }
     }
     else {                              // Modbus RTU slave
         // Stage 1. Modbus Port Initialization:
@@ -679,12 +715,18 @@ esp_err_t modbus_slave_init(void){
         esp_err_t err = mbc_slave_init(MB_PORT_SERIAL_SLAVE, &slave_handler);
         if (slave_handler == NULL || err != ESP_OK) {
             // Error handling is performed here
-            ESP_LOGE(mbSlaveTAG, "mb controller initialization fail.");
+            ESP_LOGE(mbSlaveTAG, "Modbus controller initialization fail.");
+            return ESP_FAIL;
         }
+        
 
         //Stage 2. Configuring Slave Data Access:
 
-        ESP_ERROR_CHECK(create_modbus_map());
+        err = create_modbus_map();
+        if (err != ESP_OK) {
+            ESP_LOGE(mbSlaveTAG, "Modbus memory map creation failed (%s)", esp_err_to_name(err));
+            return ESP_FAIL;
+        }
 
         //Stage 3. Slave Communication Options:
         comm_info.mode = MB_MODE_RTU;                    // Communication type
@@ -694,16 +736,31 @@ esp_err_t modbus_slave_init(void){
         comm_info.parity = MB_PARITY_NONE;                // Parity option
 
         // Setup communication parameters and start stack
-        ESP_ERROR_CHECK(mbc_slave_setup((void*)&comm_info));
+        err = mbc_slave_setup((void*)&comm_info);
+        if (err != ESP_OK) {
+            ESP_LOGE(mbSlaveTAG, "Modbus slave setup failed (%s)", esp_err_to_name(err));
+            return ESP_FAIL;
+        }
 
         // Set UART pin numbers
-        ESP_ERROR_CHECK(uart_set_pin(1, 15, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-        ESP_LOGI(TAG, "Modbus slave RTU initialized at: %lu bps", comm_info.baudrate);
+        err = uart_set_pin(1, 15, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+        if (err != ESP_OK) {
+            ESP_LOGE(mbSlaveTAG, "UART1 setup failed (%s)", esp_err_to_name(err));
+            return ESP_FAIL;
+        }
+        char line[50];
+        sprintf(line, "Modbus slave RTU baudrate is: %lu bps", comm_info.baudrate);
+        ESP_LOGI(TAG, "%s", line);
+        system_logInput(line);
     }
 
     //Stage 4. Slave Communication Start:
 
-    ESP_ERROR_CHECK(mbc_slave_start());
+    esp_err_t err = mbc_slave_start();
+    if (err != ESP_OK) {
+        ESP_LOGE(mbSlaveTAG, "Modbus slave startup failed (%s)", esp_err_to_name(err));
+        return ESP_FAIL;
+    }
 
     modbus_slave_initialized = 1;
 
@@ -1235,8 +1292,10 @@ esp_err_t modbus_master_init(void){
         IP0[2] = *(CFG_SLAVE_IP+1) >> 8;
         IP0[3] = *(CFG_SLAVE_IP+1) & 0x00FF;
         sprintf(slaveIP_str, "%hhu.%hhu.%hhu.%hhu", IP0[0], IP0[1], IP0[2], IP0[3]);
-        
-        ESP_LOGV(mbMasterTAG, "Slave IP Address: %s", slaveIP_str);
+        char line[60];
+        sprintf(line, "IP address for modbus slave device: %s", slaveIP_str);
+        ESP_LOGI(mbMasterTAG, "%s", line);
+        system_logInput(line);
 
         const char* slave_ip_address_table[2] = {
             slaveIP_str,       // Address corresponds to UID1 and set to predefined value by user
@@ -1278,7 +1337,10 @@ esp_err_t modbus_master_init(void){
 
         // Set UART pin numbers
         uart_set_pin(2, 41, 42, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-        ESP_LOGI(mbMasterTAG, "Modbus master RTU initialized at: %lu bps", comm_info.baudrate);
+        char line[50];
+        sprintf(line, "Modbus master RTU baudrate is: %lu bps", comm_info.baudrate);
+        ESP_LOGI(mbMasterTAG, "%s", line);
+        system_logInput(line);
     }
 
     switch (CFG_OP_MODE)    //Select appropiate dictionary depending on OP Mode
@@ -1327,7 +1389,14 @@ void scaling_task(void *pvParameters){
 void mb_event_check_task(void *pvParameters){
     mb_param_info_t reg_info;
     size_t size = sizeof(float);
+    mb_event_group_t event_mask = (MB_EVENT_HOLDING_REG_WR |
+                                   MB_EVENT_HOLDING_REG_RD |
+                                   MB_EVENT_INPUT_REG_RD   |
+                                   MB_EVENT_DISCRETE_RD    |
+                                   MB_EVENT_COILS_RD       |
+                                   MB_EVENT_COILS_WR       );
 
+    
     while(!modbus_slave_initialized){
         vTaskDelay(pdMS_TO_TICKS(20));
         continue;
@@ -1336,9 +1405,11 @@ void mb_event_check_task(void *pvParameters){
     while (1)
     {
         memset(&reg_info, 0, sizeof(mb_param_info_t));
-        mb_event_group_t event = mbc_slave_check_event(MB_EVENT_HOLDING_REG_WR);
+        //mb_event_group_t event = mbc_slave_check_event(MB_EVENT_HOLDING_REG_WR);
+        mb_event_group_t event = mbc_slave_check_event(event_mask);
         
-        //if (event & MB_EVENT_HOLDING_REG_WR){  
+        if (event & MB_EVENT_HOLDING_REG_WR){ 
+            AUX_MB_SLAVE_HR_WRITES++; 
             for (int i = 0; i<=CONFIG_FMB_CONTROLLER_NOTIFY_QUEUE_SIZE; i++)
             {
                 mbc_slave_get_param_info(&reg_info, 10 / portTICK_PERIOD_MS);
@@ -1573,7 +1644,34 @@ void mb_event_check_task(void *pvParameters){
                     }
                 }
             }         
-        //}
+        }
+        if (event & MB_EVENT_HOLDING_REG_RD){
+            AUX_MB_SLAVE_HR_READS++;
+        }
+        if (event & MB_EVENT_COILS_RD){
+            AUX_MB_SLAVE_COIL_READS++;
+        }
+        if (event & MB_EVENT_COILS_WR){
+            AUX_MB_SLAVE_COIL_WRITES++;
+        }
+        if (event & MB_EVENT_INPUT_REG_RD){
+            AUX_MB_SLAVE_INPUT_READS++;
+        }
+        if (event & MB_EVENT_DISCRETE_RD){
+            AUX_MB_SLAVE_STATUS_READS++;
+        }
+
+        if ((AUX_MB_SLAVE_HR_READS == 65535) || (AUX_MB_SLAVE_HR_WRITES == 65535) || 
+           (AUX_MB_SLAVE_COIL_READS == 65535) || (AUX_MB_SLAVE_COIL_WRITES == 65535) ||
+           (AUX_MB_SLAVE_INPUT_READS == 65535) || (AUX_MB_SLAVE_STATUS_READS == 65535))
+        {
+                AUX_MB_SLAVE_HR_READS = 0;
+                AUX_MB_SLAVE_HR_WRITES = 0;
+                AUX_MB_SLAVE_COIL_READS = 0;
+                AUX_MB_SLAVE_COIL_WRITES = 0;
+                AUX_MB_SLAVE_INPUT_READS = 0;
+                AUX_MB_SLAVE_STATUS_READS = 0;
+        }
     }
     
     taskYIELD();
@@ -2704,6 +2802,54 @@ void mb_master_poll_task(void *pvParameters){
     
 }
 
+void system_monitor_task(void *pvParameters){
+
+    uint32_t totalRWOps = 0, totalRWOps_last = 0;
+    uint8_t mb_slave_comm_live = 0;
+    uint8_t mb_slave_comm_live_last = 0;
+
+    // Install temperature sensor, expected temp range: 10~50 ℃
+    temperature_sensor_handle_t temp_sensor = NULL;
+    temperature_sensor_config_t temp_sensor_config = TEMPERATURE_SENSOR_CONFIG_DEFAULT(10, 50);
+    ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor_config, &temp_sensor));
+
+    ESP_ERROR_CHECK(temperature_sensor_enable(temp_sensor));
+    
+    float tsens_value;
+
+    while (1){
+
+        ESP_ERROR_CHECK(temperature_sensor_get_celsius(temp_sensor, &tsens_value));
+        AUX_CPU_TEMPERATURE = (uint16_t)(tsens_value * 100);
+
+        if (modbus_slave_initialized){
+            totalRWOps = AUX_MB_SLAVE_HR_READS +
+                         AUX_MB_SLAVE_HR_WRITES +
+                         AUX_MB_SLAVE_COIL_READS +
+                         AUX_MB_SLAVE_COIL_WRITES +
+                         AUX_MB_SLAVE_INPUT_READS +
+                         AUX_MB_SLAVE_STATUS_READS;
+            if (totalRWOps == totalRWOps_last){
+                mb_slave_comm_live = 0;
+            }
+            else{
+                mb_slave_comm_live = 1;
+            }
+            if (mb_slave_comm_live != mb_slave_comm_live_last){
+                if (mb_slave_comm_live)
+                    system_logInput("SCADA client connection is active");
+                else
+                    system_logInput("SCADA client connection is NOT active");
+            }
+            mb_slave_comm_live_last = mb_slave_comm_live;
+            totalRWOps_last = totalRWOps;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        //taskYIELD();
+    }
+}
+
 void GLTimerCallBack(TimerHandle_t pxTimer){
     
     msCounter24 += CFG_GL_TMR_INTERVAL;
@@ -2739,7 +2885,7 @@ void GLTimerCallBack(TimerHandle_t pxTimer){
 
 void GLTimerPIDCallBack(TimerHandle_t pxTimer){
     time2 = esp_timer_get_time();
-    s3Tables.auxTbl[0][49] = (time2 - time1)/1000;
+    AUX_PID_CALLBACK_TIME = (time2 - time1)/1000;
     
     // Error calculation
     PID_e = CFG_GL_PID_SP - GL_AI_FTGL;
@@ -2766,10 +2912,26 @@ void GLTimerPIDCallBack(TimerHandle_t pxTimer){
 }
 
 esp_err_t init_nvs(void){
-    esp_err_t r;
-    nvs_flash_init();
-    r = nvs_open("Main_Namespace", NVS_READWRITE, &app_nvs_handle);
-    return r;
+   
+    //nvs_flash_init();
+    uint8_t nvs_flash_erased = 0;
+
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        // NVS partition was truncated and needs to be erased
+        // Retry nvs_flash_init
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_flash_erased = 1;
+        system_logInput("WARNING! NVS partition has been formatted!");
+        ESP_ERROR_CHECK(nvs_flash_init());
+    }
+
+    err = nvs_open("Main_Namespace", NVS_READWRITE, &app_nvs_handle);
+    if (nvs_flash_erased) {
+        set_configDefaults_nvs();
+        system_logInput("WARNING! NVS has been set to it's default values");
+    }
+    return err;
 }
 
 esp_err_t read_nvs(char *key, uint16_t *value){
@@ -2928,7 +3090,13 @@ esp_err_t init_FAT_fileSystem(void){
         return err;
     }
     else {
-        ESP_LOGI(TAG, "Partition size: Total %llu, free %llu", total, free);
+        char line[50];
+        sprintf(line, "FAT partition size: Total %llu, free %llu", total, free);
+        ESP_LOGI(TAG, "%s", line);
+        system_logInput("");
+        system_logInput("Remota system powered up...");
+        system_logInput("FAT file system is up and running");
+        system_logInput(line);
     }
     return ESP_OK;
 }
@@ -3081,13 +3249,23 @@ esp_err_t print_systemLog(void){
 
 esp_err_t Remota_init(void){
 
+    Remota_logo();    
     ESP_LOGW(TAG, "Startup delay... 5 secs - Please wait...");
     for (uint8_t i = 0; i < 5; i++){
         printf("*.*.*.*.*\n");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
-    esp_err_t res = init_FAT_fileSystem();
+    sysLogFileSem = xSemaphoreCreateBinary();
+    xSemaphoreGive(sysLogFileSem);
+
+    esp_err_t res = ds1307_init();
+    if ( res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init RTC DS1307 (%s)", esp_err_to_name(res));
+        return ESP_FAIL;
+    }
+
+    res = init_FAT_fileSystem();
     if ( res != ESP_OK) {
         ESP_LOGE(TAG, "Failed to init FAT File System! (%s)", esp_err_to_name(res));
         return ESP_FAIL;
@@ -3095,17 +3273,9 @@ esp_err_t Remota_init(void){
     else {
         ESP_LOGI(TAG, "FAT File System Initialized (%s)", esp_err_to_name(res));
     }
-
-    res = ds1307_init();
-    if ( res != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to init RTC DS1307 (%s)", esp_err_to_name(res));
-        return ESP_FAIL;
-    }
-
-    sysLogFileSem = xSemaphoreCreateBinary();
-    xSemaphoreGive(sysLogFileSem);
-    system_logInput("Remota system powered up...");
-
+    
+    system_logInput("Real time clock module started up");
+    
     gpio_reset_pin(ledYellow);
     gpio_set_direction(ledYellow, GPIO_MODE_OUTPUT);
     gpio_set_level(ledYellow,0);
@@ -3131,6 +3301,28 @@ esp_err_t Remota_init(void){
     gpio_set_intr_type(GPIO_HANDSHAKE, GPIO_INTR_POSEDGE);
     gpio_isr_handler_add(GPIO_HANDSHAKE, gpio_handshake_isr_handler, NULL);
 
+    system_logInput("GPIO configurations have been made");
+
+    res = init_nvs();
+    if (res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize NVS flash partition (%s)", esp_err_to_name(res));
+        system_logInput("Failed to initialize NVS flash partition");
+        return res;
+    }
+    else{
+        system_logInput("NVS flash partition is up and running");
+    }
+
+    if (gpio_get_level(pushMasterReset) == 0){      // Check for master reset input
+        vTaskDelay(pdMS_TO_TICKS(250));
+        while(gpio_get_level(pushMasterReset) == 0)
+            continue;
+        ESP_LOGW(TAG, "Master reset button activated!");
+        system_logInput("Master reset button activated!");
+        set_configDefaults_nvs();
+        system_logInput("WARNING! NVS has been set to it's default values");
+    }
+
     ESP_LOGI(TAG, "Tamaño del objeto: %i bytes\n", sizeof(s3Tables));  //Imprime el tamaño de la estructura, el cual es constante independientemente del número y tamaño de los vectores
     //tablesInit(&s3Tables, 3,2,10,3);
     tablesInit(&s3Tables, 2,    //Tablas de variables analógicas
@@ -3141,18 +3333,6 @@ esp_err_t Remota_init(void){
                           2,    //Tamaño de tablas digitales
                           50,   //Tamaño de tablas de configuración
                           50);  //Tamaño de tablas auxiliares
-
-    //nvs_flash_erase();
-
-    ESP_ERROR_CHECK(init_nvs());
-
-    if (gpio_get_level(pushMasterReset) == 0){      // Check for master reset input
-        vTaskDelay(pdMS_TO_TICKS(250));
-        while(gpio_get_level(pushMasterReset) == 0)
-            continue;
-        ESP_LOGW(TAG, "Master reset button activated!");
-        set_configDefaults_nvs();
-    }
         
     //Create tables in the nvs namespace (if they don't exist):
     create_table_nvs("C", s3Tables.configSize);     //For config table
@@ -3191,15 +3371,20 @@ esp_err_t Remota_init(void){
         esp_err_t r = nvs_get_blob(app_nvs_handle, key, &s3Tables.scalingOffset[i], &size);
         ESP_ERROR_CHECK(r);
     }
+
+    system_logInput("RAM tables created and data loaded");
     
     esp_log_level_set(TAG, CFG_REMOTA_LOG_LEVEL);
     esp_log_level_set(mbSlaveTAG, CFG_REMOTA_LOG_LEVEL);
     esp_log_level_set(mbMasterTAG, CFG_REMOTA_LOG_LEVEL);
     esp_log_level_set(mbEventChkTAG, CFG_REMOTA_LOG_LEVEL);
     esp_log_level_set(wifiTAG, CFG_REMOTA_LOG_LEVEL);
-    //esp_log_level_set("MB_CONTROLLER_MASTER", 0);
-    //esp_log_level_set("MB_TCP_SLAVE_PORT", 0);
     esp_log_level_set("CRC Check", 0);
+    esp_log_level_set("MB_CONTROLLER_MASTER", 0);
+    esp_log_level_set("MB_TCP_SLAVE_PORT", 0);
+    esp_log_level_set("MB_TCP_MASTER_PORT", 0);
+    esp_log_level_set("MB_PORT_COMMON", 0);
+    esp_log_level_set("wifi", 0);
 
     sendbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
     recvbuf = (uint16_t*)heap_caps_malloc(SPI_BUFFER_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA);
@@ -3233,19 +3418,53 @@ esp_err_t Remota_init(void){
                 &xMBEventCheckTaskHandle,
                 1);
 
-    ethernetInit();
+    xTaskCreatePinnedToCore(system_monitor_task,
+                "system_monitor_task",
+                STACK_SIZE,
+                NULL,
+                (UBaseType_t) 0U,       //Priority Level 0
+                &xSystemMonitorHandle,
+                0);
+
+    res = ethernetInit();
+    if (res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize ethernet module");
+        system_logInput("Failed to initialize ethernet module");
+    }
+    else{
+        system_logInput("Ethernet module has been succesfully initialized ");
+    }
 
     // WiFi Initialization:
     res = WiFi_init();
     if ( res != ESP_OK) {
         ESP_LOGE(TAG, "Failed to init WiFi Module (%s)", esp_err_to_name(res));
+        system_logInput("Failed to initialize WiFi module");
         return ESP_FAIL;
     }
     else {
-        ESP_LOGI(TAG, "WiFi module succesfully initialized (%s)", esp_err_to_name(res));
+        if (CFG_WIFI_MODE < 3){
+            ESP_LOGI(TAG, "WiFi module has been succesfully initialized (%s)", esp_err_to_name(res));
+            system_logInput("WiFi module has been succesfully initialized ");
+        }
+        else{
+            system_logInput("WiFi module is set to OFF in configuration table");
+        }
+        
     }
 
-    modbus_slave_init();
+    // Init moddbus slave stack:
+    res = modbus_slave_init();
+    if ( res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to init modbus slave stack (%s)", esp_err_to_name(res));
+        system_logInput("Modbus slave stack initialization failed");
+        return ESP_FAIL;
+    }
+    else {
+        ESP_LOGI(TAG, "Modbus slave stack succesfully initialized (%s)", esp_err_to_name(res));
+        system_logInput("Modbus slave stack succesfully initialized");
+    }
+
 
     if (CFG_OP_MODE == 1) {             //Creates the timer for GAS Volume accumulation, only in Gas Lift OP Mode
         xGLAcc_Timer = xTimerCreate("GL_Timer",
@@ -3290,6 +3509,30 @@ esp_err_t Remota_init(void){
             ESP_LOGI(TAG, "Modbus master initialized");
         }
     }
+
+    char line[35];
+    switch (CFG_OP_MODE)
+    {
+    case 0:
+        sprintf(line, "Op. Mode: Natural flow wells");
+        break;
+    case 1:
+        sprintf(line, "Op. Mode: Gas lift wells");
+        break;
+    case 2:
+        sprintf(line, "Op. Mode: Mechanical pump wells");
+        break;
+    case 3:
+        sprintf(line, "Op. Mode: E.S. Pump wells");
+        break;
+    case 4:
+        sprintf(line, "Op. Mode: Prog. Cavity pump wells");
+        break;
+    case 5:
+        sprintf(line, "Op. Mode: Valve station");
+        break;
+    }
+    system_logInput(line);
 
     return ESP_OK;
 }
@@ -3363,4 +3606,24 @@ void resume_tasks(void){
             ESP_LOGW(TAG, "Run mode is activated");
         }      
     }
+}
+
+void Remota_logo(void){
+    printf("\n\n\n");
+    printf("**************************************************************************************************\n");
+    printf("*  ____    _____   __  __    ___    _____      _           _      ____    ____     ____   ____   *\n");
+    printf("* |  _ \\  | ____| |  \\/  |  / _ \\  |_   _|    / \\         / \\    |___ \\  / ___|   / ___| |  _ \\  *\n");
+    printf("* | |_) | |  _|   | |\\/| | | | | |   | |     / _ \\       / _ \\     __) | \\___ \\  | |     | |_) | *\n");
+    printf("* |  _ <  | |___  | |  | | | |_| |   | |    / ___ \\     / ___ \\   / __/   ___) | | |___  |  __/  *\n");
+    printf("* |_| \\_\\ |_____| |_|  |_|  \\___/    |_|   /_/   \\_\\   /_/   \\_\\ |_____| |____/   \\____| |_|     *\n");
+    printf("*                                                                                                *\n");
+    printf("*                                                                                                *\n");
+    printf("*                                                                                                *\n");
+    printf("*                                      __     __    _        ___                                 *\n");
+    printf("*                                      \\ \\   / /   / |      / _ \\                                *\n");
+    printf("*                                       \\ \\ / /    | |     | | | |                               *\n");
+    printf("*                                        \\ V /     | |  _  | |_| |                               *\n");
+    printf("*                                         \\_/      |_| (_)  \\___/                                *\n");
+    printf("*                                                                                                *\n");
+    printf("**************************************************************************************************\n");
 }

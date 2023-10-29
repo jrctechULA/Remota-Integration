@@ -75,6 +75,17 @@
 #define AUX_MB_MASTER_ERR_COUNT   s3Tables.auxTbl[0][6]
 #define AUX_MB_MASTER_RETRY_COUNT s3Tables.auxTbl[0][7]
 
+#define AUX_MB_SLAVE_HR_READS     s3Tables.auxTbl[0][8]
+#define AUX_MB_SLAVE_HR_WRITES    s3Tables.auxTbl[0][9]
+#define AUX_MB_SLAVE_COIL_READS   s3Tables.auxTbl[0][10]
+#define AUX_MB_SLAVE_COIL_WRITES  s3Tables.auxTbl[0][11]
+#define AUX_MB_SLAVE_INPUT_READS  s3Tables.auxTbl[0][12]
+#define AUX_MB_SLAVE_STATUS_READS s3Tables.auxTbl[0][13]
+
+#define AUX_CPU_TEMPERATURE       s3Tables.auxTbl[0][14]
+
+#define AUX_PID_CALLBACK_TIME     s3Tables.auxTbl[0][49]
+
 
 
 #define MS24H 86400000                                 // Milisegundos en 24H
@@ -148,8 +159,9 @@ TaskHandle_t xSPITaskHandle = NULL;
 TaskHandle_t xScalingTaskHandle = NULL;
 TaskHandle_t xMBEventCheckTaskHandle = NULL;
 TaskHandle_t xMBMasterPollTaskHandle = NULL;
+TaskHandle_t xSystemMonitorHandle = NULL;
 TimerHandle_t xGLAcc_Timer = NULL;
-TimerHandle_t xGLPID_Timer = NULL;
+TimerHandle_t xGLPID_Timer = NULL;   
 
 //The semaphore indicating the slave is ready to receive stuff.
 QueueHandle_t rdySem;
@@ -230,6 +242,7 @@ esp_err_t exchangeData(varTables_t *Tables);
 void spi_transaction_counter(void);
 void print_spi_stats(void);
 void print_mb_master_stats(void);
+void print_mb_slave_stats(void);
 
 void spi_task(void *pvParameters);
 
@@ -242,6 +255,8 @@ void scaling_task(void *pvParameters);
 void mb_event_check_task(void *pvParameters);
 
 void mb_master_poll_task(void *pvParameters);
+
+void system_monitor_task(void *pvParameters);
 
 void GLTimerCallBack(TimerHandle_t pxTimer); 
 void GLTimerPIDCallBack(TimerHandle_t pxTimer);
@@ -260,6 +275,7 @@ esp_err_t system_logInput(const char* message);
 esp_err_t print_systemLog(void);
 
 esp_err_t Remota_init(void);
+void Remota_logo(void);
 void stop_tasks(void);
 void resume_tasks(void);
 #endif

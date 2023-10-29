@@ -28,6 +28,7 @@
         "mbcontroller.h": "c",
         "mb_dictionaries.h": "c",
         "timers.h": "c",
-        "freertosconfig.h": "c"
+        "freertosconfig.h": "c",
+        "temperature_sensor.h": "c"
     }
 }

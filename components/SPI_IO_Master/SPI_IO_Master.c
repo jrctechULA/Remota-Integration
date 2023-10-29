@@ -36,7 +36,6 @@ esp_err_t init_spi(void)
     spi_bus_add_device(IO_SPI_HOST, &devcfg, &handle);
 
     spi_test();
-
     return ESP_OK;
 }
 
