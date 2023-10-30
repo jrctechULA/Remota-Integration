@@ -3156,75 +3156,93 @@ esp_err_t system_logInput(const char* message){
     while (xSemaphoreTake(sysLogFileSem, portMAX_DELAY) != pdTRUE)
             continue;
 
-    ESP_LOGV(TAG, "Creating a backup file from sys_log.log to sys_log.bak");
-    FILE *file, *f_backup;
-    char character;
+    if (USE_LOG_BACKUP_FILE){   // Write in sys_log.log file making a backup first... (slower - safe - Flash stressing)
+        ESP_LOGV(TAG, "Creating a backup file from sys_log.log to sys_log.bak");
+        FILE *file, *f_backup;
+        char character;
 
-    // Open sys_log.log for reading, if doesn't exists, create it:
-    file = fopen("/spiflash/sys_log.log", "rb");
-    if (file == NULL) {
-        ESP_LOGV(TAG, "File does not exist, creating...");
-        file = fopen("/spiflash/sys_log.log", "wb");
+        // Open sys_log.log for reading, if doesn't exists, create it:
+        file = fopen("/spiflash/sys_log.log", "rb");
         if (file == NULL) {
-            ESP_LOGV(TAG, "Failed to create file");
+            ESP_LOGV(TAG, "File does not exist, creating...");
+            file = fopen("/spiflash/sys_log.log", "wb");
+            if (file == NULL) {
+                ESP_LOGV(TAG, "Failed to create file");
+                xSemaphoreGive(sysLogFileSem);
+                return ESP_FAIL;
+            }
+            fclose(file);
+            file = fopen("/spiflash/sys_log.log", "rb");
+        }
+
+        // Open sys_log.bak for writing:
+        f_backup = fopen("/spiflash/sys_log.bak", "wb");
+        if (f_backup == NULL) {
+            ESP_LOGE(TAG, "Failed to open file for writing");
+            fclose(file);
             xSemaphoreGive(sysLogFileSem);
             return ESP_FAIL;
         }
-        fclose(file);
-        file = fopen("/spiflash/sys_log.log", "rb");
-    }
 
-    // Open sys_log.bak for writing:
-    f_backup = fopen("/spiflash/sys_log.bak", "wb");
-    if (f_backup == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for writing");
-        fclose(file);
-        xSemaphoreGive(sysLogFileSem);
-        return ESP_FAIL;
-    }
-
-    // Read the content of sys_log.log and copy to sys_log.bak:
-    while (1) {
-        character = fgetc(file);
-        if (feof(file)) {
-            break; // End of original file
+        // Read the content of sys_log.log and copy to sys_log.bak:
+        while (1) {
+            character = fgetc(file);
+            if (feof(file)) {
+                break; // End of original file
+            }
+            fputc(character, f_backup);
         }
-        fputc(character, f_backup);
-    }
-    fclose(file);
-    fclose(f_backup);
+        fclose(file);
+        fclose(f_backup);
 
-    //Append timestamp and message to sys_log.bak:
-    ESP_LOGV(TAG, "Append info to the file sys_log.bak");
-    file = fopen("/spiflash/sys_log.bak", "a");
-    if (file == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for append");
-        xSemaphoreGive(sysLogFileSem);
-        return ESP_FAIL;
-    }
-    
-    fprintf(file, "(%s) - %s\n", time_str, message);
-    fclose(file);
+        //Append timestamp and message to sys_log.bak:
+        ESP_LOGV(TAG, "Append info to the file sys_log.bak");
+        file = fopen("/spiflash/sys_log.bak", "a");
+        if (file == NULL) {
+            ESP_LOGE(TAG, "Failed to open file for append");
+            xSemaphoreGive(sysLogFileSem);
+            return ESP_FAIL;
+        }
+        
+        fprintf(file, "(%s) - %s\n", time_str, message);
+        fclose(file);
 
-    //Remove original file:
-    ESP_LOGV(TAG, "Removing original file sys_log.log");
-    if (remove("/spiflash/sys_log.log") == 0)
-        ESP_LOGV(TAG, "Original file has been removed");
-    else
-        ESP_LOGE(TAG, "Failed to remove original file");
+        //Remove original file:
+        ESP_LOGV(TAG, "Removing original file sys_log.log");
+        if (remove("/spiflash/sys_log.log") == 0)
+            ESP_LOGV(TAG, "Original file has been removed");
+        else
+            ESP_LOGE(TAG, "Failed to remove original file");
 
-    //Rename sys_log.bak file:
-    ESP_LOGV(TAG, "Rename the file sys_log.bak to sys_log.log");
-    if (rename("/spiflash/sys_log.bak", "/spiflash/sys_log.log") == 0)
-        ESP_LOGV(TAG, "File renamed succesfully");
-    else {
-        ESP_LOGE(TAG, "Failed to remove original file");
-        xSemaphoreGive(sysLogFileSem);
-        return ESP_FAIL;
+        //Rename sys_log.bak file:
+        ESP_LOGV(TAG, "Rename the file sys_log.bak to sys_log.log");
+        if (rename("/spiflash/sys_log.bak", "/spiflash/sys_log.log") == 0)
+            ESP_LOGV(TAG, "File renamed succesfully");
+        else {
+            ESP_LOGE(TAG, "Failed to remove original file");
+            xSemaphoreGive(sysLogFileSem);
+            return ESP_FAIL;
+        }
     }
+    else{   // Write in sys_log.log file without backing it up... (faster - unsafe - flash friendly)
+        //Append timestamp and message to sys_log.log:
+        ESP_LOGV(TAG, "Append info to the file sys_log.log");
+        FILE *file;
+        file = fopen("/spiflash/sys_log.log", "a");
+        if (file == NULL) {
+            ESP_LOGE(TAG, "Failed to open file for append");
+            xSemaphoreGive(sysLogFileSem);
+            return ESP_FAIL;
+        }
+        
+        fprintf(file, "(%s) - %s\n", time_str, message);
+        fclose(file);
+    }
+
+    xSemaphoreGive(sysLogFileSem);
 #endif
         
-    xSemaphoreGive(sysLogFileSem);
+    
     return ESP_OK;
 }
 
@@ -3250,9 +3268,9 @@ esp_err_t print_systemLog(void){
 esp_err_t Remota_init(void){
 
     Remota_logo();    
-    ESP_LOGW(TAG, "Startup delay... 5 secs - Please wait...");
-    for (uint8_t i = 0; i < 5; i++){
-        printf("*.*.*.*.*\n");
+    ESP_LOGW(TAG, "Startup delay... 10 secs - Please wait...");
+    for (uint8_t i = 0; i < 10; i++){
+        printf("*.*.*.*. %2d s .*.*.*.*\n", 10-i);
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 

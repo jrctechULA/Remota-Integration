@@ -15,6 +15,7 @@
 //____________________________________________________________________________________________________
 
 //#define SYS_LOG_FILE_WRITE_DISABLE
+#define USE_LOG_BACKUP_FILE 0
 
 #define ledYellow 37
 #define ledGreen 36
@@ -63,6 +64,8 @@
 #define CFG_GL_PID_N  ((float)s3Tables.configTbl[0][45] / 1000) //3
 
 #define CFG_WIFI_MODE (s3Tables.configTbl[0][24])               //2
+
+//#define CFG_USE_LOG_BACKUP_FILE (s3Tables.configTbl[0][25])
 
 #define AUX_RTC_YEAR    s3Tables.auxTbl[0][43]
 #define AUX_RTC_MONTH   s3Tables.auxTbl[0][44]
