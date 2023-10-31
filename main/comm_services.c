@@ -24,19 +24,19 @@ ________________________________________________________________________________
 //____________________________________________________________________________________________________
 //Comment out this line to use dynamic IP, via DHCP Server:
 
-#define ETHERNET_USE_STATIC_IP
+//#define ETHERNET_USE_STATIC_IP
 
-#ifdef ETHERNET_USE_STATIC_IP
+//#ifdef ETHERNET_USE_STATIC_IP
 
 /* #define ETHERNET_IP_ADDR        "192.168.1.20"
 #define ETHERNET_GATEWAY        "192.168.1.10"
 #define ETHERNET_SUBNET_MASK    "255.255.255.0" */
 
-#define ETHERNET_IP_ADDR        "172.16.0.100"
+/* #define ETHERNET_IP_ADDR        "172.16.0.100"
 #define ETHERNET_GATEWAY        "172.16.0.1"
-#define ETHERNET_SUBNET_MASK    "255.255.255.0"
+#define ETHERNET_SUBNET_MASK    "255.255.255.0" */
 
-#endif //ETHERNET_USE_STATIC_IP
+//#endif //ETHERNET_USE_STATIC_IP
 
 //Comment out this line to use ENC28J60 Ethernet Module
 
@@ -431,9 +431,17 @@ void set_ip_eth0(void){
     GW[3] = *(CFG_GW+1) & 0x00FF;
     sprintf(GW_str, "%hhu.%hhu.%hhu.%hhu", GW[0], GW[1], GW[2], GW[3]);
 
+    char subMask_str[16] = {'\0'};
+    uint8_t subMask[4] = {0};
+    subMask[0] = *CFG_SUBNET_MASK >> 8;
+    subMask[1] = *CFG_SUBNET_MASK & 0x00FF;
+    subMask[2] = *(CFG_SUBNET_MASK+1) >> 8;
+    subMask[3] = *(CFG_SUBNET_MASK+1) & 0x00FF;
+    sprintf(subMask_str, "%hhu.%hhu.%hhu.%hhu", subMask[0], subMask[1], subMask[2], subMask[3]);
+
     esp_netif_str_to_ip4(IP0_str, &ip_info.ip);          //Set IP address
     esp_netif_str_to_ip4(GW_str, &ip_info.gw);          //Set Gateway
-    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
+    esp_netif_str_to_ip4(subMask_str, &ip_info.netmask);    //Set Subnet Mask
 
     esp_netif_set_ip_info(eth_netif, &ip_info);
 }
@@ -457,9 +465,17 @@ void set_wifi_STA_ip(void){
     GW[3] = *(CFG_GW+1) & 0x00FF;
     sprintf(GW_str, "%hhu.%hhu.%hhu.%hhu", GW[0], GW[1], GW[2], GW[3]);
 
+    char subMask_str[16] = {'\0'};
+    uint8_t subMask[4] = {0};
+    subMask[0] = *CFG_SUBNET_MASK >> 8;
+    subMask[1] = *CFG_SUBNET_MASK & 0x00FF;
+    subMask[2] = *(CFG_SUBNET_MASK+1) >> 8;
+    subMask[3] = *(CFG_SUBNET_MASK+1) & 0x00FF;
+    sprintf(subMask_str, "%hhu.%hhu.%hhu.%hhu", subMask[0], subMask[1], subMask[2], subMask[3]);
+
     esp_netif_str_to_ip4(IP2_str, &ip_info.ip);          //Set IP address
     esp_netif_str_to_ip4(GW_str, &ip_info.gw);          //Set Gateway
-    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
+    esp_netif_str_to_ip4(subMask_str, &ip_info.netmask);    //Set Subnet Mask
 
     //esp_netif_dhcpc_stop(wifi_STA_netif);
     esp_netif_set_ip_info(wifi_STA_netif, &ip_info);
@@ -476,9 +492,17 @@ void set_wifi_AP_ip(void){
     IP3[3] = *(CFG_IP3+1) & 0x00FF;
     sprintf(IP3_str, "%hhu.%hhu.%hhu.%hhu", IP3[0], IP3[1], IP3[2], IP3[3]);
 
+    char subMask_str[16] = {'\0'};
+    uint8_t subMask[4] = {0};
+    subMask[0] = *CFG_SUBNET_MASK >> 8;
+    subMask[1] = *CFG_SUBNET_MASK & 0x00FF;
+    subMask[2] = *(CFG_SUBNET_MASK+1) >> 8;
+    subMask[3] = *(CFG_SUBNET_MASK+1) & 0x00FF;
+    sprintf(subMask_str, "%hhu.%hhu.%hhu.%hhu", subMask[0], subMask[1], subMask[2], subMask[3]);
+
     esp_netif_str_to_ip4(IP3_str, &ip_info.ip);          //Set IP address
     esp_netif_str_to_ip4(IP3_str, &ip_info.gw);          //Set Gateway
-    esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
+    esp_netif_str_to_ip4(subMask_str, &ip_info.netmask);    //Set Subnet Mask
 
     esp_netif_set_ip_info(wifi_AP_netif, &ip_info);
     char line[50];

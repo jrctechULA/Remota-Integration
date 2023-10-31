@@ -24,6 +24,8 @@
 #define STACK_SIZE 3072
 #define SPI_BUFFER_SIZE 55
 
+#define MAX_LOG_FILE_SIZE 20480     // Maximum sys_log.log file size (20 KB)
+
 #define SPI_TRANSACTION_COUNT_L s3Tables.auxTbl[0][0]
 #define SPI_TRANSACTION_COUNT_H s3Tables.auxTbl[0][1]
 #define SPI_ERROR_COUNT s3Tables.auxTbl[0][2]
@@ -36,7 +38,7 @@
 #define CFG_RUN_PGM s3Tables.configTbl[0][0]              //Run mode or Config mode
 #define CFG_OP_MODE s3Tables.configTbl[0][1]              //Operation mode 0-5
 #define CFG_IP0 &s3Tables.configTbl[0][2]                 //IP address for Ethernet 0
-#define CFG_IP1 &s3Tables.configTbl[0][4]                 //IP address for Ethernet 1
+#define CFG_SUBNET_MASK &s3Tables.configTbl[0][4]         //Subnet Mask
 #define CFG_IP2 &s3Tables.configTbl[0][6]                 //IP address for WiFi (Station mode)
 #define CFG_IP3 &s3Tables.configTbl[0][8]                 //IP address for WiFi (AP mode)
 #define CFG_GW &s3Tables.configTbl[0][10]                 //Gateway
@@ -65,6 +67,7 @@
 
 #define CFG_WIFI_MODE (s3Tables.configTbl[0][24])               //2
 
+
 //#define CFG_USE_LOG_BACKUP_FILE (s3Tables.configTbl[0][25])
 
 #define AUX_RTC_YEAR    s3Tables.auxTbl[0][43]
@@ -88,6 +91,8 @@
 #define AUX_CPU_TEMPERATURE       s3Tables.auxTbl[0][14]
 
 #define AUX_PID_CALLBACK_TIME     s3Tables.auxTbl[0][49]
+
+#define AUX_SYS_LOG_CLEAR         s3Tables.auxTbl[0][15]
 
 
 
@@ -276,6 +281,8 @@ esp_err_t ds1307_init(void);
 esp_err_t setTime_ds1307(void);
 esp_err_t system_logInput(const char* message);
 esp_err_t print_systemLog(void);
+esp_err_t clear_systemLog(void);
+esp_err_t systemLog_copy2SD(void);
 
 esp_err_t Remota_init(void);
 void Remota_logo(void);
