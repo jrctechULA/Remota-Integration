@@ -217,34 +217,36 @@ esp_err_t ethernetInit(void) {
 
     if (!CFG_DHCP){
         esp_netif_dhcpc_stop(eth_netif);
-        esp_netif_ip_info_t ip_info;
+
+        set_ip_eth0();
+        //esp_netif_ip_info_t ip_info;
 
         /* char IP0[16] = {'\0'};  
         sprintf(IP0, "%hhu.%hhu.%hhu.%hhu", *CFG_IP0, *(CFG_IP0+1), *(CFG_IP0+2), *(CFG_IP0+3)); */
         /* char GW[16] = {'\0'};  
         sprintf(GW, "%hhu.%hhu.%hhu.%hhu", *CFG_GW, *(CFG_GW+1), *(CFG_GW+2), *(CFG_GW+3)); */
 
-        char IP0_str[16] = {'\0'};
-        uint8_t IP0[4] = {0};
-        IP0[0] = *CFG_IP0 >> 8;
-        IP0[1] = *CFG_IP0 & 0x00FF;
-        IP0[2] = *(CFG_IP0+1) >> 8;
-        IP0[3] = *(CFG_IP0+1) & 0x00FF;
-        sprintf(IP0_str, "%hhu.%hhu.%hhu.%hhu", IP0[0], IP0[1], IP0[2], IP0[3]);
+        //char IP0_str[16] = {'\0'};
+        //uint8_t IP0[4] = {0};
+        //IP0[0] = *CFG_IP0 >> 8;
+        //IP0[1] = *CFG_IP0 & 0x00FF;
+        //IP0[2] = *(CFG_IP0+1) >> 8;
+        //IP0[3] = *(CFG_IP0+1) & 0x00FF;
+        //sprintf(IP0_str, "%hhu.%hhu.%hhu.%hhu", IP0[0], IP0[1], IP0[2], IP0[3]);
 
-        char GW_str[16] = {'\0'};
-        uint8_t GW[4] = {0};
-        GW[0] = *CFG_GW >> 8;
-        GW[1] = *CFG_GW & 0x00FF;
-        GW[2] = *(CFG_GW+1) >> 8;
-        GW[3] = *(CFG_GW+1) & 0x00FF;
-        sprintf(GW_str, "%hhu.%hhu.%hhu.%hhu", GW[0], GW[1], GW[2], GW[3]);
+        //char GW_str[16] = {'\0'};
+        //uint8_t GW[4] = {0};
+        //GW[0] = *CFG_GW >> 8;
+        //GW[1] = *CFG_GW & 0x00FF;
+        //GW[2] = *(CFG_GW+1) >> 8;
+        //GW[3] = *(CFG_GW+1) & 0x00FF;
+        //sprintf(GW_str, "%hhu.%hhu.%hhu.%hhu", GW[0], GW[1], GW[2], GW[3]);
 
-        esp_netif_str_to_ip4(IP0_str, &ip_info.ip);          //Set IP address
-        esp_netif_str_to_ip4(GW_str, &ip_info.gw);          //Set Gateway
-        esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
+        //esp_netif_str_to_ip4(IP0_str, &ip_info.ip);          //Set IP address
+        //esp_netif_str_to_ip4(GW_str, &ip_info.gw);          //Set Gateway
+        //esp_netif_str_to_ip4(ETHERNET_SUBNET_MASK, &ip_info.netmask);    //Set Subnet Mask
 
-        esp_netif_set_ip_info(eth_netif, &ip_info);
+        //esp_netif_set_ip_info(eth_netif, &ip_info);
     }
     
 

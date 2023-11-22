@@ -29,6 +29,7 @@
         "mb_dictionaries.h": "c",
         "timers.h": "c",
         "freertosconfig.h": "c",
-        "temperature_sensor.h": "c"
+        "temperature_sensor.h": "c",
+        "esp_eth.h": "c"
     }
 }

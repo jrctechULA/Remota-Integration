@@ -3004,6 +3004,7 @@ esp_err_t create_float_table_nvs(char *c, uint8_t tableSize){
 }
 
 esp_err_t set_configDefaults_nvs(void){
+    
     ESP_LOGW(TAG, "Setting nvs flash contents to default values...");
 
     //Create tables in the nvs namespace (if they don't exist):
